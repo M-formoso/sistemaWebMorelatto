@@ -1,0 +1,33 @@
+# FastAPI
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Validation & Utils
+pydantic==2.6.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+email-validator==2.1.0.post1
+
+# CORS
+httpx==0.26.0
+
+# Payments - MercadoPago
+mercadopago==2.2.1
+
+# AFIP - Facturación Electrónica (implementación directa con zeep)
+cryptography>=41.0.0
+zeep==4.2.1
+requests==2.31.0
+lxml>=4.9.0
+pyOpenSSL>=23.0.0

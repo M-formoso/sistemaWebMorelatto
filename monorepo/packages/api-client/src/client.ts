@@ -1,0 +1,641 @@
+const API_URL = typeof window !== 'undefined'
+  ? (import.meta.env?.VITE_API_URL || 'http://localhost:8001/api')
+  : 'http://localhost:8001/api';
+
+class ApiClient {
+  private baseUrl: string;
+  private token: string | null = null;
+
+  constructor(baseUrl: string = API_URL) {
+    this.baseUrl = baseUrl;
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('auth_token');
+    }
+  }
+
+  private async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (this.token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error de conexión' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Session ID for guest cart
+  getSessionId(): string {
+    if (typeof window === 'undefined') return '';
+    let sessionId = localStorage.getItem('cart_session_id');
+    if (!sessionId) {
+      sessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      localStorage.setItem('cart_session_id', sessionId);
+    }
+    return sessionId;
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  // ============ AUTH ============
+
+  async login(email: string, password: string) {
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
+
+    const response = await fetch(`${this.baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Credenciales incorrectas' }));
+      throw new Error(error.detail);
+    }
+
+    const data = await response.json();
+    this.token = data.access_token;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', data.access_token);
+    }
+    return data;
+  }
+
+  async register(data: { email: string; password: string; full_name: string; role?: string }) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, role: data.role || 'user' }),
+    });
+  }
+
+  async createAdmin(data: { email: string; password: string; full_name?: string }) {
+    return this.request('/auth/create-admin', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getMe() {
+    return this.request('/auth/me');
+  }
+
+  logout() {
+    this.token = null;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
+  }
+
+  // ============ PRODUCTS ============
+
+  async getProducts(params?: { search?: string; category_id?: string; low_stock?: boolean }) {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.category_id) searchParams.append('category_id', params.category_id);
+    if (params?.low_stock) searchParams.append('low_stock', 'true');
+
+    const query = searchParams.toString();
+    return this.request(`/products${query ? `?${query}` : ''}`);
+  }
+
+  async getPublicProducts(params?: { category_id?: string; search?: string; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.category_id) searchParams.append('category_id', params.category_id);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/products/public${query ? `?${query}` : ''}`);
+  }
+
+  async getProduct(id: string) {
+    return this.request(`/products/${id}`);
+  }
+
+  async getProductByCode(code: string) {
+    return this.request(`/products/code/${code}`);
+  }
+
+  async getPublicProduct(id: string) {
+    return this.request(`/products/public/${id}`);
+  }
+
+  async createProduct(data: any) {
+    return this.request('/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProduct(id: string, data: any) {
+    return this.request(`/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProduct(id: string) {
+    return this.request(`/products/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============ CATEGORIES ============
+
+  async getCategories() {
+    return this.request('/categories');
+  }
+
+  async createCategory(data: any) {
+    return this.request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(id: string, data: any) {
+    return this.request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string) {
+    return this.request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============ SALES (Sistema) ============
+
+  async getSales(params?: { date_from?: string; date_to?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.date_from) searchParams.append('date_from', params.date_from);
+    if (params?.date_to) searchParams.append('date_to', params.date_to);
+
+    const query = searchParams.toString();
+    return this.request(`/sales${query ? `?${query}` : ''}`);
+  }
+
+  async getSale(id: string) {
+    return this.request(`/sales/${id}`);
+  }
+
+  async createSale(data: any) {
+    return this.request('/sales', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSalesSummary(params?: { date_from?: string; date_to?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.date_from) searchParams.append('date_from', params.date_from);
+    if (params?.date_to) searchParams.append('date_to', params.date_to);
+
+    const query = searchParams.toString();
+    return this.request(`/sales/summary${query ? `?${query}` : ''}`);
+  }
+
+  // ============ CLIENTS (Sistema) ============
+
+  async getClients(params?: { search?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.append('search', params.search);
+
+    const query = searchParams.toString();
+    return this.request(`/clients${query ? `?${query}` : ''}`);
+  }
+
+  async getClient(id: string) {
+    return this.request(`/clients/${id}`);
+  }
+
+  async createClient(data: any) {
+    return this.request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateClient(id: string, data: any) {
+    return this.request(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============ CART (Ecommerce) ============
+
+  async getCart() {
+    const sessionId = this.getSessionId();
+    return this.request(`/orders/cart?session_id=${sessionId}`);
+  }
+
+  async addToCart(productId: string, quantity: number = 1, variantId?: string) {
+    const sessionId = this.getSessionId();
+    return this.request('/orders/cart/add', {
+      method: 'POST',
+      headers: {
+        'X-Session-ID': sessionId,
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        quantity,
+        variant_id: variantId
+      }),
+    });
+  }
+
+  async updateCartItem(cartItemId: string, quantity: number) {
+    return this.request(`/orders/cart/${cartItemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ quantity }),
+    });
+  }
+
+  async removeFromCart(cartItemId: string) {
+    return this.request(`/orders/cart/${cartItemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async clearCart() {
+    const sessionId = this.getSessionId();
+    return this.request(`/orders/cart/clear?session_id=${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============ ORDERS (Ecommerce) ============
+
+  async getOrders(params?: { status?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+
+    const query = searchParams.toString();
+    return this.request(`/orders${query ? `?${query}` : ''}`);
+  }
+
+  async getOrder(id: string) {
+    return this.request(`/orders/${id}`);
+  }
+
+  async getMyOrders() {
+    return this.request('/orders/my-orders');
+  }
+
+  async createOrder(data: any) {
+    const sessionId = this.getSessionId();
+    return this.request('/orders', {
+      method: 'POST',
+      headers: {
+        'X-Session-ID': sessionId,
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateOrderStatus(id: string, status: string) {
+    return this.request(`/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // ============ WORKSHOPS ============
+
+  async getWorkshops(params?: { is_active?: boolean }) {
+    const searchParams = new URLSearchParams();
+    if (params?.is_active !== undefined) searchParams.append('is_active', params.is_active.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/workshops${query ? `?${query}` : ''}`);
+  }
+
+  async getWorkshop(id: string) {
+    return this.request(`/workshops/${id}`);
+  }
+
+  async getPublicWorkshops() {
+    return this.request('/workshops/public');
+  }
+
+  async getPublicWorkshop(id: string) {
+    return this.request(`/workshops/public/${id}`);
+  }
+
+  async createWorkshop(data: any) {
+    return this.request('/workshops', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWorkshop(id: string, data: any) {
+    return this.request(`/workshops/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWorkshopEnrollments(workshopId: string) {
+    return this.request(`/workshops/${workshopId}/enrollments`);
+  }
+
+  async createEnrollment(data: any) {
+    return this.request('/workshops/enroll', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async enrollInWorkshop(data: any) {
+    return this.request('/workshops/public/enroll', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============ SHIPPING ============
+
+  async getShippingZones() {
+    return this.request('/shipping/zones');
+  }
+
+  async getShippingRates(zoneId?: string) {
+    const query = zoneId ? `?zone_id=${zoneId}` : '';
+    return this.request(`/shipping/rates${query}`);
+  }
+
+  async calculateShipping(data: { city: string; province: string; total_weight: number; order_total: number }) {
+    return this.request('/shipping/calculate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createShippingZone(data: any) {
+    return this.request('/shipping/zones', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateShippingZone(id: string, data: any) {
+    return this.request(`/shipping/zones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createShippingRate(data: any) {
+    return this.request('/shipping/rates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateShippingRate(id: string, data: any) {
+    return this.request(`/shipping/rates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============ PAYMENT METHODS ============
+
+  async getPaymentMethods() {
+    return this.request('/payment-methods');
+  }
+
+  async createPaymentMethod(data: any) {
+    return this.request('/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePaymentMethod(id: string, data: any) {
+    return this.request(`/payment-methods/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============ NEWS ============
+
+  async getNews() {
+    return this.request('/news');
+  }
+
+  async getNewsItem(id: string) {
+    return this.request(`/news/${id}`);
+  }
+
+  async createNews(data: any) {
+    return this.request('/news', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateNews(id: string, data: any) {
+    return this.request(`/news/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNews(id: string) {
+    return this.request(`/news/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============ DASHBOARD ============
+
+  async getDashboardSummary() {
+    return this.request('/dashboard/summary');
+  }
+
+  async getSalesByPeriod(days: number = 30) {
+    return this.request(`/dashboard/sales-by-period?days=${days}`);
+  }
+
+  async getTopProducts(limit: number = 10, days: number = 30) {
+    return this.request(`/dashboard/top-products?limit=${limit}&days=${days}`);
+  }
+
+  async getLowStockProducts() {
+    return this.request('/dashboard/low-stock');
+  }
+
+  // ============ PAYMENTS (MercadoPago) ============
+
+  async getMercadoPagoConfig() {
+    return this.request('/payments/config');
+  }
+
+  async createPaymentPreference(data: {
+    order_id: string;
+    items: Array<{ title: string; quantity: number; unit_price: number; currency_id?: string }>;
+    payer?: {
+      name: string;
+      surname?: string;
+      email: string;
+      phone_area_code?: string;
+      phone_number?: string;
+      street_name?: string;
+      street_number?: string;
+      zip_code?: string;
+    };
+  }) {
+    return this.request('/payments/preference', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaymentStatus(paymentId: string) {
+    return this.request(`/payments/status/${paymentId}`);
+  }
+
+  async getOrderPaymentStatus(orderId: string) {
+    return this.request(`/payments/order/${orderId}/payment-status`);
+  }
+
+  // ============ INVOICES (AFIP) ============
+
+  async getAFIPConfig() {
+    return this.request('/invoices/config');
+  }
+
+  async getAFIPStatus() {
+    return this.request('/invoices/status');
+  }
+
+  async getLastInvoiceNumber(tipoCbte: number = 11) {
+    return this.request(`/invoices/last-number?tipo_cbte=${tipoCbte}`);
+  }
+
+  async createInvoice(data: { total: number; tipo_doc?: number; nro_doc?: string; concepto?: number }) {
+    return this.request('/invoices/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async invoiceOrder(orderId: string, data?: { tipo_doc?: number; nro_doc?: string }) {
+    return this.request(`/invoices/order/${orderId}`, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async invoiceSale(saleId: string, data?: { tipo_doc?: number; nro_doc?: string }) {
+    return this.request(`/invoices/sale/${saleId}`, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async getOrderInvoiceInfo(orderId: string) {
+    return this.request(`/invoices/order/${orderId}/info`);
+  }
+
+  // ============ USERS ============
+
+  async getUsers(params?: { role?: string; is_active?: boolean; search?: string; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.role) searchParams.append('role', params.role);
+    if (params?.is_active !== undefined) searchParams.append('is_active', params.is_active.toString());
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/users${query ? `?${query}` : ''}`);
+  }
+
+  async getUserStats() {
+    return this.request('/users/stats');
+  }
+
+  async getUser(id: string) {
+    return this.request(`/users/${id}`);
+  }
+
+  async createUser(data: {
+    email: string;
+    password: string;
+    full_name?: string;
+    phone?: string;
+    document?: string;
+    role?: string;
+    is_active?: boolean;
+  }) {
+    return this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: string, data: {
+    email?: string;
+    full_name?: string;
+    phone?: string;
+    document?: string;
+    role?: string;
+    is_active?: boolean;
+  }) {
+    return this.request(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changeUserPassword(id: string, newPassword: string) {
+    return this.request(`/users/${id}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ new_password: newPassword }),
+    });
+  }
+
+  async toggleUserActive(id: string) {
+    return this.request(`/users/${id}/toggle-active`, {
+      method: 'PATCH',
+    });
+  }
+
+  async deleteUser(id: string) {
+    return this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getUserRoles() {
+    return this.request('/users/roles/list');
+  }
+}
+
+export const api = new ApiClient();
+export default api;
+export { ApiClient };
