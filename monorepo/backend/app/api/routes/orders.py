@@ -9,6 +9,7 @@ from app.models.order import Order, OrderItem, CartItem, OrderStatus, PaymentSta
 from app.models.product import Product
 from app.schemas.order import OrderCreate, OrderResponse, CartItemCreate, CartItemResponse
 from app.core.security import get_current_admin
+from app.services.stock_service import decrease_stock
 
 router = APIRouter()
 
@@ -47,12 +48,29 @@ def add_to_cart(
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    if product.stock < item_data.quantity:
-        raise HTTPException(status_code=400, detail="Stock insuficiente")
+    # Validar stock según si es variante o producto base
+    if item_data.variant_id:
+        # Verificar stock de la variante
+        from app.models.product import ProductVariant
+        variant = db.query(ProductVariant).filter(
+            ProductVariant.id == item_data.variant_id,
+            ProductVariant.is_active == True
+        ).first()
 
-    # Buscar item existente
+        if not variant:
+            raise HTTPException(status_code=404, detail="Variante no encontrada")
+
+        if variant.stock < item_data.quantity:
+            raise HTTPException(status_code=400, detail=f"Stock insuficiente. Solo quedan {variant.stock} unidades de este color")
+    else:
+        # Verificar stock del producto base
+        if product.stock < item_data.quantity:
+            raise HTTPException(status_code=400, detail=f"Stock insuficiente. Solo quedan {product.stock} unidades")
+
+    # Buscar item existente (mismo producto Y misma variante)
     existing = db.query(CartItem).filter(
         CartItem.product_id == item_data.product_id,
+        CartItem.variant_id == item_data.variant_id,
         CartItem.session_id == session_id
     ).first()
 
@@ -176,10 +194,19 @@ def create_order(
                 detail=f"Producto {item_data.product_id} no encontrado"
             )
 
-        if product.stock < item_data.quantity:
+        # Validar y descontar stock según si es variante o no
+        stock_decreased = decrease_stock(
+            db=db,
+            product_id=item_data.product_id,
+            quantity=item_data.quantity,
+            variant_id=item_data.variant_id
+        )
+
+        if not stock_decreased:
+            variant_msg = " (variante seleccionada)" if item_data.variant_id else ""
             raise HTTPException(
                 status_code=400,
-                detail=f"Stock insuficiente para {product.name}"
+                detail=f"Stock insuficiente para {product.name}{variant_msg}"
             )
 
         item_total = product.price * item_data.quantity
@@ -192,9 +219,6 @@ def create_order(
             unit_price=product.price,
             total_price=item_total
         ))
-
-        # Descontar stock
-        product.stock -= item_data.quantity
 
     # Crear pedido
     order = Order(

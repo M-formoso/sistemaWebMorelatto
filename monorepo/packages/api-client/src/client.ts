@@ -1,5 +1,6 @@
-const API_URL = typeof window !== 'undefined'
-  ? (import.meta.env?.VITE_API_URL || 'http://localhost:8001/api')
+// Get API URL from environment or use default
+const API_URL = (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL)
+  ? import.meta.env.VITE_API_URL
   : 'http://localhost:8001/api';
 
 class ApiClient {
@@ -31,6 +32,11 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Error de conexión' }));
       throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    // Handle 204 No Content - no body to parse
+    if (response.status === 204) {
+      return {} as T;
     }
 
     return response.json();
@@ -73,6 +79,7 @@ class ApiClient {
     this.token = data.access_token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', data.access_token);
+      
     }
     return data;
   }
@@ -104,11 +111,12 @@ class ApiClient {
 
   // ============ PRODUCTS ============
 
-  async getProducts(params?: { search?: string; category_id?: string; low_stock?: boolean }) {
+  async getProducts(params?: { search?: string; category_id?: string; low_stock?: boolean; is_active?: boolean }) {
     const searchParams = new URLSearchParams();
     if (params?.search) searchParams.append('search', params.search);
     if (params?.category_id) searchParams.append('category_id', params.category_id);
     if (params?.low_stock) searchParams.append('low_stock', 'true');
+    if (params?.is_active !== undefined) searchParams.append('is_active', params.is_active.toString());
 
     const query = searchParams.toString();
     return this.request(`/products${query ? `?${query}` : ''}`);
@@ -153,6 +161,144 @@ class ApiClient {
 
   async deleteProduct(id: string) {
     return this.request(`/products/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async publishProductToWeb(id: string, data: { category_id: string; weight?: number }) {
+    return this.request(`/products/${id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============ IMAGES ============
+
+  async uploadImage(formData: FormData) {
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/images/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al subir imagen' }));
+      throw new Error(error.detail);
+    }
+
+    return response.json();
+  }
+
+  async uploadMultipleImages(formData: FormData) {
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/images/upload/multiple`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al subir imágenes' }));
+      throw new Error(error.detail);
+    }
+
+    return response.json();
+  }
+
+  async addProductImage(productId: string, imageData: any) {
+    return this.request(`/images/products/${productId}/images`, {
+      method: 'POST',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async getProductImages(productId: string) {
+    return this.request(`/images/products/${productId}/images`);
+  }
+
+  async updateProductImage(imageId: string, imageData: any) {
+    return this.request(`/images/products/images/${imageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async deleteProductImage(imageId: string) {
+    return this.request(`/images/products/images/${imageId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setPrimaryImage(productId: string, imageId: string) {
+    return this.request(`/images/products/${productId}/images/set-primary/${imageId}`, {
+      method: 'POST',
+    });
+  }
+
+  async reorderImages(productId: string, imageOrders: any[]) {
+    return this.request(`/images/products/${productId}/images/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify(imageOrders),
+    });
+  }
+
+  // ============ WORKSHOP IMAGES ============
+
+  async addWorkshopImage(workshopId: string, imageData: any) {
+    return this.request(`/images/workshops/${workshopId}/images`, {
+      method: 'POST',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async getWorkshopImages(workshopId: string) {
+    return this.request(`/images/workshops/${workshopId}/images`);
+  }
+
+  async updateWorkshopImage(imageId: string, imageData: any) {
+    return this.request(`/images/workshops/images/${imageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async deleteWorkshopImage(imageId: string) {
+    return this.request(`/images/workshops/images/${imageId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============ NEWS IMAGES ============
+
+  async addNewsImage(newsId: string, imageData: any) {
+    return this.request(`/images/news/${newsId}/images`, {
+      method: 'POST',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async getNewsImages(newsId: string) {
+    return this.request(`/images/news/${newsId}/images`);
+  }
+
+  async updateNewsImage(imageId: string, imageData: any) {
+    return this.request(`/images/news/images/${imageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(imageData),
+    });
+  }
+
+  async deleteNewsImage(imageId: string) {
+    return this.request(`/images/news/images/${imageId}`, {
       method: 'DELETE',
     });
   }
@@ -633,6 +779,18 @@ class ApiClient {
 
   async getUserRoles() {
     return this.request('/users/roles/list');
+  }
+
+  // Helper method to get full image URL
+  getImageUrl(relativePath: string | null | undefined): string | null {
+    if (!relativePath) return null;
+    // If it's already a full URL, return it
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      return relativePath;
+    }
+    // Remove /api from baseUrl and append the relative path
+    const baseUrl = this.baseUrl.replace('/api', '');
+    return `${baseUrl}${relativePath}`;
   }
 }
 

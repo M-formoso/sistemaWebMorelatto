@@ -1,8 +1,25 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_serializer
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
 from datetime import date, datetime
+
+
+class WorkshopImageResponse(BaseModel):
+    id: UUID
+    image_url: str
+    is_primary: bool
+    display_order: int
+    alt_text: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_serializer('id')
+    def serialize_id(self, value: UUID) -> str:
+        return str(value)
+
+    class Config:
+        from_attributes = True
 
 
 class WorkshopBase(BaseModel):
@@ -30,6 +47,11 @@ class WorkshopResponse(WorkshopBase):
     id: UUID
     current_participants: int
     created_at: datetime
+    images: List[WorkshopImageResponse] = []
+
+    @field_serializer('id')
+    def serialize_id(self, value: UUID) -> str:
+        return str(value)
 
     class Config:
         from_attributes = True
@@ -71,6 +93,85 @@ class AttendanceCreate(AttendanceBase):
 
 
 class AttendanceResponse(AttendanceBase):
+    id: UUID
+    enrollment_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopProjectBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    status: str = "en_progreso"  # en_progreso, completado, pausado
+    start_date: date
+    end_date: Optional[date] = None
+
+
+class WorkshopProjectCreate(WorkshopProjectBase):
+    enrollment_id: UUID
+
+
+class WorkshopProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    end_date: Optional[date] = None
+
+
+class WorkshopProjectResponse(WorkshopProjectBase):
+    id: UUID
+    enrollment_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectPurchaseBase(BaseModel):
+    quantity: int
+    original_price: Decimal
+    discount_percentage: Decimal = 0
+    final_price: Decimal
+    date: date
+
+
+class ProjectPurchaseCreate(ProjectPurchaseBase):
+    project_id: UUID
+    product_id: UUID
+
+
+class ProjectPurchaseResponse(ProjectPurchaseBase):
+    id: UUID
+    project_id: UUID
+    product_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentInstallmentBase(BaseModel):
+    installment_number: int
+    amount: Decimal
+    due_date: date
+    paid: bool = False
+    payment_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class PaymentInstallmentCreate(PaymentInstallmentBase):
+    enrollment_id: UUID
+
+
+class PaymentInstallmentUpdate(BaseModel):
+    paid: Optional[bool] = None
+    payment_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class PaymentInstallmentResponse(PaymentInstallmentBase):
     id: UUID
     enrollment_id: UUID
     created_at: datetime

@@ -1,14 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_serializer
 from datetime import datetime, date
+from uuid import UUID
 
 from app.db.session import get_db
 from app.models.content import News
 from app.core.security import get_current_admin
 
 router = APIRouter(prefix="/news", tags=["news"])
+
+
+class NewsImageResponse(BaseModel):
+    id: UUID
+    image_url: str
+    is_primary: bool
+    display_order: int
+    alt_text: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_serializer('id')
+    def serialize_id(self, value: UUID) -> str:
+        return str(value)
+
+    class Config:
+        from_attributes = True
 
 
 class NewsBase(BaseModel):
@@ -19,6 +37,8 @@ class NewsBase(BaseModel):
     image_url: Optional[str] = None
     published_date: date
     is_active: bool = True
+    card_size: Optional[str] = "medium"  # small, medium, large
+    layout_type: Optional[str] = "grid"  # grid, list, featured
 
 
 class NewsCreate(NewsBase):
@@ -33,10 +53,12 @@ class NewsUpdate(BaseModel):
     image_url: Optional[str] = None
     published_date: Optional[date] = None
     is_active: Optional[bool] = None
+    card_size: Optional[str] = None
+    layout_type: Optional[str] = None
 
 
 class NewsResponse(BaseModel):
-    id: str
+    id: UUID
     title: str
     slug: str
     excerpt: Optional[str] = None
@@ -44,8 +66,15 @@ class NewsResponse(BaseModel):
     image_url: Optional[str] = None
     published_date: date
     is_active: bool
+    card_size: str = "medium"
+    layout_type: str = "grid"
+    images: List[NewsImageResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    @field_serializer('id')
+    def serialize_id(self, value: UUID) -> str:
+        return str(value)
 
     class Config:
         from_attributes = True
@@ -61,7 +90,7 @@ def get_news(
     db: Session = Depends(get_db)
 ):
     """Get all published news (public)"""
-    query = db.query(News)
+    query = db.query(News).options(joinedload(News.images))
     if is_active:
         query = query.filter(News.is_active == True)
     return query.order_by(News.published_date.desc()).offset(skip).limit(limit).all()
@@ -73,10 +102,10 @@ def get_news_item(
     db: Session = Depends(get_db)
 ):
     """Get a specific news item (public)"""
-    news = db.query(News).filter(News.id == news_id).first()
+    news = db.query(News).options(joinedload(News.images)).filter(News.id == news_id).first()
     if not news:
         # Try by slug
-        news = db.query(News).filter(News.slug == news_id).first()
+        news = db.query(News).options(joinedload(News.images)).filter(News.slug == news_id).first()
     if not news:
         raise HTTPException(status_code=404, detail="Novedad no encontrada")
     return news

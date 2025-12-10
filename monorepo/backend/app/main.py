@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.core.config import settings
 from app.api.routes import api_router
@@ -20,23 +22,26 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS
+# CORS - Permitir todos los origenes en desarrollo (debe ir antes de las rutas)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_SISTEMA_URL,
-        settings.FRONTEND_ECOMMERCE_URL,
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # Permitir todos los origenes (cambiar en produccion)
+    allow_credentials=False,  # Debe ser False cuando allow_origins es "*"
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# Rutas
+# Rutas API
 app.include_router(api_router, prefix="/api")
+
+# Crear directorio de uploads si no existe
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+(UPLOAD_DIR / "products").mkdir(exist_ok=True)
+
+# Montar directorio de archivos estaticos (debe ir DESPUES de las rutas API)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/")

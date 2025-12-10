@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_serializer, computed_field
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
@@ -41,6 +41,41 @@ class ProductVariantCreate(ProductVariantBase):
 class ProductVariantResponse(ProductVariantBase):
     id: UUID
     product_id: UUID
+    stock: int = 0
+
+    # Computed field para agregar stock_quantity en la respuesta JSON
+    @computed_field
+    @property
+    def stock_quantity(self) -> int:
+        return self.stock
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class ProductImageBase(BaseModel):
+    image_url: str
+    is_primary: bool = False
+    display_order: int = 0
+    alt_text: Optional[str] = None
+
+
+class ProductImageCreate(ProductImageBase):
+    pass
+
+
+class ProductImageUpdate(BaseModel):
+    image_url: Optional[str] = None
+    is_primary: Optional[bool] = None
+    display_order: Optional[int] = None
+    alt_text: Optional[str] = None
+
+
+class ProductImageResponse(ProductImageBase):
+    id: UUID
+    product_id: UUID
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -84,16 +119,38 @@ class ProductUpdate(BaseModel):
     is_featured: Optional[bool] = None
 
 
-class ProductResponse(ProductBase):
+class ProductResponse(BaseModel):
     id: UUID
-    physical_code_assigned: bool
+    name: str
+    description: Optional[str] = None
+    price: Decimal
+    stock: int = 0
+    code: str
+    cost: Optional[Decimal] = None
+    stock_min: int = 5
+    physical_code_assigned: bool = False
+    color: Optional[str] = None
+    category_id: Optional[UUID] = None
+    slug: Optional[str] = None
+    image_url: Optional[str] = None
+    weight: Optional[Decimal] = None
+    is_active: bool = True
+    is_featured: bool = False
     created_at: datetime
     updated_at: datetime
     category: Optional[CategoryResponse] = None
-    variants: List[ProductVariantResponse] = []
+    product_variants: List[ProductVariantResponse] = Field(default=[], alias="variants")
+    images: List[ProductImageResponse] = []
+
+    # Computed field para agregar stock_quantity en la respuesta JSON
+    @computed_field
+    @property
+    def stock_quantity(self) -> int:
+        return self.stock
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class ProductListResponse(BaseModel):
@@ -101,3 +158,9 @@ class ProductListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PublishProductRequest(BaseModel):
+    category_id: UUID
+    weight: Optional[float] = None
+    parent_product_id: Optional[UUID] = None  # Si es una variante de otro producto

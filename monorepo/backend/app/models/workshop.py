@@ -49,6 +49,7 @@ class Workshop(Base, TimestampMixin):
 
     # Relationships
     enrollments = relationship("WorkshopClient", back_populates="workshop", cascade="all, delete-orphan")
+    images = relationship("WorkshopImage", back_populates="workshop", cascade="all, delete-orphan", order_by="WorkshopImage.display_order")
 
     def __repr__(self):
         return f"<Workshop {self.name}>"
@@ -79,6 +80,7 @@ class WorkshopClient(Base, TimestampMixin):
     client = relationship("Client", back_populates="workshop_enrollments")
     attendances = relationship("Attendance", back_populates="enrollment", cascade="all, delete-orphan")
     projects = relationship("WorkshopProject", back_populates="enrollment", cascade="all, delete-orphan")
+    # payment_installments relationship is defined by PaymentInstallment in finance.py
     payment_installments = relationship("PaymentInstallment", back_populates="enrollment", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -144,3 +146,21 @@ class ProjectPurchase(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<ProjectPurchase {self.product_id}>"
+
+
+class WorkshopImage(Base, TimestampMixin):
+    """Imagenes de talleres para galeria"""
+    __tablename__ = "workshop_images"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workshop_id = Column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    is_primary = Column(Boolean, default=False)
+    display_order = Column(Integer, default=0)
+    alt_text = Column(String(255), nullable=True)
+
+    # Relationships
+    workshop = relationship("Workshop", back_populates="images")
+
+    def __repr__(self):
+        return f"<WorkshopImage {self.id} - Primary: {self.is_primary}>"

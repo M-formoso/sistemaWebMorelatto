@@ -4,11 +4,19 @@ from typing import Optional, List
 from uuid import UUID
 
 from app.db.session import get_db
-from app.models.workshop import Workshop, WorkshopClient, Attendance
+from app.models.workshop import (
+    Workshop, WorkshopClient, Attendance,
+    WorkshopProject, ProjectPurchase
+)
+from app.models.finance import PaymentInstallment
+from app.models.product import Product
 from app.schemas.workshop import (
     WorkshopCreate, WorkshopResponse,
     WorkshopClientCreate, WorkshopClientResponse,
-    AttendanceCreate, AttendanceResponse
+    AttendanceCreate, AttendanceResponse,
+    WorkshopProjectCreate, WorkshopProjectUpdate, WorkshopProjectResponse,
+    ProjectPurchaseCreate, ProjectPurchaseResponse,
+    PaymentInstallmentCreate, PaymentInstallmentUpdate, PaymentInstallmentResponse
 )
 from app.core.security import get_current_admin
 
@@ -24,7 +32,7 @@ def get_workshops(
     db: Session = Depends(get_db)
 ):
     """Listar talleres"""
-    query = db.query(Workshop)
+    query = db.query(Workshop).options(joinedload(Workshop.images))
 
     if is_active is not None:
         query = query.filter(Workshop.is_active == is_active)
@@ -38,7 +46,7 @@ def get_workshops(
 @router.get("/public", response_model=List[WorkshopResponse])
 def get_public_workshops(db: Session = Depends(get_db)):
     """Listar talleres publicos para el ecommerce"""
-    return db.query(Workshop).filter(
+    return db.query(Workshop).options(joinedload(Workshop.images)).filter(
         Workshop.is_active == True,
         Workshop.is_public == True
     ).order_by(Workshop.start_date.desc()).all()
@@ -47,7 +55,7 @@ def get_public_workshops(db: Session = Depends(get_db)):
 @router.get("/{workshop_id}", response_model=WorkshopResponse)
 def get_workshop(workshop_id: UUID, db: Session = Depends(get_db)):
     """Obtener taller por ID"""
-    workshop = db.query(Workshop).filter(Workshop.id == workshop_id).first()
+    workshop = db.query(Workshop).options(joinedload(Workshop.images)).filter(Workshop.id == workshop_id).first()
     if not workshop:
         raise HTTPException(status_code=404, detail="Taller no encontrado")
     return workshop
@@ -56,7 +64,7 @@ def get_workshop(workshop_id: UUID, db: Session = Depends(get_db)):
 @router.get("/slug/{slug}", response_model=WorkshopResponse)
 def get_workshop_by_slug(slug: str, db: Session = Depends(get_db)):
     """Obtener taller por slug"""
-    workshop = db.query(Workshop).filter(
+    workshop = db.query(Workshop).options(joinedload(Workshop.images)).filter(
         Workshop.slug == slug,
         Workshop.is_public == True
     ).first()
@@ -215,3 +223,254 @@ def update_attendance(
 
     db.commit()
     return {"message": "Asistencia actualizada"}
+
+
+# ============ PROYECTOS ============
+
+@router.get("/enrollments/{enrollment_id}/projects", response_model=List[WorkshopProjectResponse])
+def get_enrollment_projects(
+    enrollment_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar proyectos de una inscripcion"""
+    return db.query(WorkshopProject).filter(
+        WorkshopProject.enrollment_id == enrollment_id
+    ).order_by(WorkshopProject.created_at.desc()).all()
+
+
+@router.get("/projects", response_model=List[WorkshopProjectResponse])
+def get_all_projects(
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar todos los proyectos"""
+    return db.query(WorkshopProject).order_by(
+        WorkshopProject.created_at.desc()
+    ).all()
+
+
+@router.get("/projects/{project_id}", response_model=WorkshopProjectResponse)
+def get_project(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Obtener proyecto por ID"""
+    project = db.query(WorkshopProject).filter(WorkshopProject.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    return project
+
+
+@router.post("/projects", response_model=WorkshopProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(
+    project_data: WorkshopProjectCreate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Crear proyecto"""
+    # Verificar que la inscripcion existe
+    enrollment = db.query(WorkshopClient).filter(
+        WorkshopClient.id == project_data.enrollment_id
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Inscripcion no encontrada")
+
+    project = WorkshopProject(**project_data.model_dump())
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.patch("/projects/{project_id}", response_model=WorkshopProjectResponse)
+def update_project(
+    project_id: UUID,
+    project_data: WorkshopProjectUpdate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Actualizar proyecto"""
+    project = db.query(WorkshopProject).filter(WorkshopProject.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    update_data = project_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(project, field, value)
+
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Eliminar proyecto"""
+    project = db.query(WorkshopProject).filter(WorkshopProject.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    db.delete(project)
+    db.commit()
+
+
+# ============ COMPRAS DE PROYECTO ============
+
+@router.get("/projects/{project_id}/purchases", response_model=List[ProjectPurchaseResponse])
+def get_project_purchases(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar compras de un proyecto"""
+    return db.query(ProjectPurchase).filter(
+        ProjectPurchase.project_id == project_id
+    ).order_by(ProjectPurchase.date.desc()).all()
+
+
+@router.get("/purchases", response_model=List[ProjectPurchaseResponse])
+def get_all_purchases(
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar todas las compras de proyectos"""
+    return db.query(ProjectPurchase).order_by(
+        ProjectPurchase.date.desc()
+    ).all()
+
+
+@router.post("/purchases", response_model=ProjectPurchaseResponse, status_code=status.HTTP_201_CREATED)
+def create_purchase(
+    purchase_data: ProjectPurchaseCreate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Crear compra de proyecto"""
+    # Verificar proyecto
+    project = db.query(WorkshopProject).filter(
+        WorkshopProject.id == purchase_data.project_id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    # Verificar producto
+    product = db.query(Product).filter(
+        Product.id == purchase_data.product_id
+    ).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    purchase = ProjectPurchase(**purchase_data.model_dump())
+    db.add(purchase)
+    db.commit()
+    db.refresh(purchase)
+    return purchase
+
+
+@router.delete("/purchases/{purchase_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_purchase(
+    purchase_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Eliminar compra"""
+    purchase = db.query(ProjectPurchase).filter(ProjectPurchase.id == purchase_id).first()
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+
+    db.delete(purchase)
+    db.commit()
+
+
+# ============ CUOTAS DE PAGO ============
+
+@router.get("/enrollments/{enrollment_id}/installments", response_model=List[PaymentInstallmentResponse])
+def get_enrollment_installments(
+    enrollment_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar cuotas de una inscripcion"""
+    return db.query(PaymentInstallment).filter(
+        PaymentInstallment.enrollment_id == enrollment_id
+    ).order_by(PaymentInstallment.due_date).all()
+
+
+@router.get("/installments", response_model=List[PaymentInstallmentResponse])
+def get_all_installments(
+    pending_only: bool = False,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Listar todas las cuotas"""
+    query = db.query(PaymentInstallment)
+    if pending_only:
+        query = query.filter(PaymentInstallment.paid == False)
+    return query.order_by(PaymentInstallment.due_date).all()
+
+
+@router.post("/installments", response_model=PaymentInstallmentResponse, status_code=status.HTTP_201_CREATED)
+def create_installment(
+    installment_data: PaymentInstallmentCreate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Crear cuota"""
+    # Verificar inscripcion
+    enrollment = db.query(WorkshopClient).filter(
+        WorkshopClient.id == installment_data.enrollment_id
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Inscripcion no encontrada")
+
+    installment = PaymentInstallment(**installment_data.model_dump())
+    db.add(installment)
+    db.commit()
+    db.refresh(installment)
+    return installment
+
+
+@router.patch("/installments/{installment_id}", response_model=PaymentInstallmentResponse)
+def update_installment(
+    installment_id: UUID,
+    installment_data: PaymentInstallmentUpdate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Actualizar cuota"""
+    installment = db.query(PaymentInstallment).filter(
+        PaymentInstallment.id == installment_id
+    ).first()
+    if not installment:
+        raise HTTPException(status_code=404, detail="Cuota no encontrada")
+
+    update_data = installment_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(installment, field, value)
+
+    db.commit()
+    db.refresh(installment)
+    return installment
+
+
+@router.delete("/installments/{installment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_installment(
+    installment_id: UUID,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Eliminar cuota"""
+    installment = db.query(PaymentInstallment).filter(
+        PaymentInstallment.id == installment_id
+    ).first()
+    if not installment:
+        raise HTTPException(status_code=404, detail="Cuota no encontrada")
+
+    db.delete(installment)
+    db.commit()

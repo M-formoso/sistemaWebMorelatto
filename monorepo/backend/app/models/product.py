@@ -57,11 +57,18 @@ class Product(Base, TimestampMixin):
     is_active = Column(Boolean, default=True)  # visible en ecommerce
     is_featured = Column(Boolean, default=False)  # destacado en home
 
+    # Variantes: un producto puede ser variante de otro (ej: diferentes colores)
+    parent_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
+
     # Relationships
     category = relationship("Category", back_populates="products")
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
+    images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.display_order")
     sale_items = relationship("SaleItem", back_populates="product")
     order_items = relationship("OrderItem", back_populates="product")
+
+    # Relationship para variantes como productos
+    parent_product = relationship("Product", remote_side=[id], foreign_keys=[parent_product_id], backref="color_variants")
 
     def __repr__(self):
         return f"<Product {self.code}: {self.name}>"
@@ -84,3 +91,21 @@ class ProductVariant(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<ProductVariant {self.color_name}>"
+
+
+class ProductImage(Base, TimestampMixin):
+    """Imagenes de productos para galeria"""
+    __tablename__ = "product_images"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    is_primary = Column(Boolean, default=False)  # Imagen principal
+    display_order = Column(Integer, default=0)  # Orden de visualizacion
+    alt_text = Column(String(255), nullable=True)
+
+    # Relationships
+    product = relationship("Product", back_populates="images")
+
+    def __repr__(self):
+        return f"<ProductImage {self.id} - Primary: {self.is_primary}>"
