@@ -52,11 +52,21 @@ class Order(Base, TimestampMixin):
     # Estado y pago
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
     payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
-    payment_method = Column(String(50), nullable=True)
+    payment_method = Column(String(50), nullable=True)  # "card", "bank_transfer"
+    payment_gateway = Column(String(50), nullable=True)  # "mercadopago", "stripe"
 
     # MercadoPago
-    payment_id = Column(String(100), nullable=True)  # ID del pago en MP
-    payment_preference_id = Column(String(100), nullable=True)  # ID de la preferencia
+    mp_payment_id = Column(String(100), nullable=True)  # ID del pago en MP
+    mp_preference_id = Column(String(100), nullable=True)  # ID de la preferencia
+
+    # Stripe
+    stripe_payment_intent_id = Column(String(100), nullable=True)  # PaymentIntent ID
+    stripe_customer_id = Column(String(100), nullable=True)  # Customer ID
+
+    # Transferencia bancaria
+    transfer_proof_url = Column(String(500), nullable=True)  # URL del comprobante
+    transfer_verified_at = Column(DateTime, nullable=True)  # Fecha de verificación
+
     paid_at = Column(DateTime, nullable=True)
 
     # Facturación AFIP

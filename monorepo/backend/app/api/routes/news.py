@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, field_validator
 from datetime import datetime, date
 from uuid import UUID
+import re
 
 from app.db.session import get_db
 from app.models.content import News
@@ -40,6 +41,17 @@ class NewsBase(BaseModel):
     card_size: Optional[str] = "medium"  # small, medium, large
     layout_type: Optional[str] = "grid"  # grid, list, featured
 
+    @field_validator('slug')
+    @classmethod
+    def validate_slug(cls, v: str) -> str:
+        # No permitir URLs en el slug
+        if '://' in v or v.startswith('http') or v.startswith('www.') or '/' in v:
+            raise ValueError('El slug no puede ser una URL. Usa un slug simple como "mi-novedad"')
+        # Solo permitir letras, números, guiones y guiones bajos (más flexible)
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('El slug solo puede contener letras, números, guiones (-) y guiones bajos (_)')
+        return v
+
 
 class NewsCreate(NewsBase):
     pass
@@ -55,6 +67,19 @@ class NewsUpdate(BaseModel):
     is_active: Optional[bool] = None
     card_size: Optional[str] = None
     layout_type: Optional[str] = None
+
+    @field_validator('slug')
+    @classmethod
+    def validate_slug(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        # No permitir URLs en el slug
+        if '://' in v or v.startswith('http') or v.startswith('www.') or '/' in v:
+            raise ValueError('El slug no puede ser una URL completa. Usa solo la parte final como "lanas-e-hilos"')
+        # Solo permitir letras, números, guiones y guiones bajos
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('El slug solo puede contener letras, números, guiones (-) y guiones bajos (_)')
+        return v
 
 
 class NewsResponse(BaseModel):
@@ -102,10 +127,20 @@ def get_news_item(
     db: Session = Depends(get_db)
 ):
     """Get a specific news item (public)"""
-    news = db.query(News).options(joinedload(News.images)).filter(News.id == news_id).first()
+    # Primero intentar buscar por slug (más común)
+    news = db.query(News).options(joinedload(News.images)).filter(News.slug == news_id).first()
+
+    # Si no se encuentra y parece ser un UUID, intentar por ID
     if not news:
-        # Try by slug
-        news = db.query(News).options(joinedload(News.images)).filter(News.slug == news_id).first()
+        try:
+            from uuid import UUID
+            # Validar que sea un UUID válido
+            UUID(news_id)
+            news = db.query(News).options(joinedload(News.images)).filter(News.id == news_id).first()
+        except ValueError:
+            # No es un UUID válido, no intentar buscar por ID
+            pass
+
     if not news:
         raise HTTPException(status_code=404, detail="Novedad no encontrada")
     return news

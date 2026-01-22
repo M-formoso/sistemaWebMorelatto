@@ -28,12 +28,29 @@ class Settings(BaseSettings):
     MERCADOPAGO_FAILURE_URL: str = "http://localhost:5174/checkout/failure"
     MERCADOPAGO_PENDING_URL: str = "http://localhost:5174/checkout/pending"
 
+    # Stripe
+    STRIPE_SECRET_KEY: str = ""  # Secret key de Stripe
+    STRIPE_PUBLISHABLE_KEY: str = ""  # Publishable key de Stripe
+    STRIPE_WEBHOOK_SECRET: str = ""  # Webhook signing secret
+
     # AFIP - Facturación Electrónica
     AFIP_CUIT: str = ""  # CUIT sin guiones (ej: 20123456789)
     AFIP_CERT_PATH: str = ""  # Ruta al certificado .crt
     AFIP_KEY_PATH: str = ""  # Ruta a la clave privada .key
     AFIP_PRODUCTION: bool = False  # False = homologación, True = producción
     AFIP_PUNTO_VENTA: int = 1  # Punto de venta habilitado en AFIP
+
+    # PAQ.AR - Correo Argentino API
+    PAQAR_API_KEY: str = ""  # API Key de PAQ.AR
+    PAQAR_AGREEMENT_ID: str = ""  # ID de Acuerdo/Contrato con Correo Argentino
+    PAQAR_PRODUCTION: bool = False  # False = testing, True = producción
+
+    # Carriers - Envíos
+    ANDREANI_API_KEY: str = ""
+    ANDREANI_CONTRACT: str = ""
+    OCA_API_KEY: str = ""
+    OCA_USERNAME: str = ""
+    OCA_PASSWORD: str = ""
 
     class Config:
         env_file = ".env"

@@ -11,6 +11,7 @@ class CategoryBase(BaseModel):
     description: Optional[str] = None
     image_url: Optional[str] = None
     parent_category_id: Optional[UUID] = None
+    section: str = "productos"  # "productos" o "decoracion"
     is_active: bool = True
 
 
@@ -96,6 +97,7 @@ class ProductBase(BaseModel):
     weight: Optional[Decimal] = None
     is_active: bool = True
     is_featured: bool = False
+    show_in_decoration: bool = False
 
 
 class ProductCreate(ProductBase):
@@ -117,6 +119,7 @@ class ProductUpdate(BaseModel):
     weight: Optional[Decimal] = None
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
+    show_in_decoration: Optional[bool] = None
 
 
 class ProductResponse(BaseModel):
@@ -136,6 +139,7 @@ class ProductResponse(BaseModel):
     weight: Optional[Decimal] = None
     is_active: bool = True
     is_featured: bool = False
+    show_in_decoration: bool = False
     created_at: datetime
     updated_at: datetime
     category: Optional[CategoryResponse] = None

@@ -7,6 +7,7 @@ from app.models.finance import Movement, PaymentInstallment
 from app.models.client import Client
 from app.models.shipping import ShippingZone, ShippingRate, PaymentMethod
 from app.models.content import News, NewsImage
+from app.models.supplier import Supplier, SupplierPurchase, SupplierPayment
 
 __all__ = [
     "User",
@@ -17,5 +18,6 @@ __all__ = [
     "Movement", "PaymentInstallment",
     "Client",
     "ShippingZone", "ShippingRate", "PaymentMethod",
-    "News", "NewsImage"
+    "News", "NewsImage",
+    "Supplier", "SupplierPurchase", "SupplierPayment"
 ]

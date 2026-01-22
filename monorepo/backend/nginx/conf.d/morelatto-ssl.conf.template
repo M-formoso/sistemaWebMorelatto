@@ -1,0 +1,124 @@
+# ==========================================================
+# CONFIGURACIÓN CON SSL/HTTPS - PRODUCCIÓN
+# ==========================================================
+# Renombrar a morelatto-ssl.conf después de obtener certificado SSL
+# ==========================================================
+
+# Redirigir HTTP a HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name api.morelatto.com;  # CAMBIAR por tu dominio
+
+    # Location para renovación de certificados
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirigir todo a HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# Servidor HTTPS Principal
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    server_name api.morelatto.com;  # CAMBIAR por tu dominio
+
+    # Certificados SSL
+    ssl_certificate /etc/letsencrypt/live/api.morelatto.com/fullchain.pem;  # CAMBIAR dominio
+    ssl_certificate_key /etc/letsencrypt/live/api.morelatto.com/privkey.pem;  # CAMBIAR dominio
+
+    # Configuración SSL moderna y segura
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # OCSP Stapling
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    ssl_trusted_certificate /etc/letsencrypt/live/api.morelatto.com/chain.pem;  # CAMBIAR dominio
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Logs
+    access_log /var/log/nginx/morelatto-access.log;
+    error_log /var/log/nginx/morelatto-error.log;
+
+    # Client body size para subir archivos
+    client_max_body_size 20M;
+
+    # Location para validación de Let's Encrypt
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Health check endpoint
+    location /health {
+        proxy_pass http://api:8000/health;
+        access_log off;
+    }
+
+    # API Backend
+    location / {
+        # Proxy al contenedor de FastAPI
+        proxy_pass http://api:8000;
+
+        # Headers necesarios
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # CORS (FastAPI ya lo maneja, pero por seguridad)
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization" always;
+
+        # Timeouts para operaciones largas
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Buffering
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # Endpoint específico para webhooks (sin rate limiting)
+    location ~ ^/api/payments/(webhook|stripe/webhook) {
+        proxy_pass http://api:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Sin timeout para webhooks
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+
+# ==========================================================
+# INSTRUCCIONES DE USO:
+# ==========================================================
+# 1. Cambiar TODOS los "api.morelatto.com" por tu dominio real
+# 2. Después de obtener el certificado SSL, renombrar este archivo:
+#    mv morelatto-ssl.conf.template morelatto-ssl.conf
+# 3. Deshabilitar la configuración HTTP:
+#    mv morelatto.conf morelatto.conf.disabled
+# 4. Recargar Nginx:
+#    docker-compose exec nginx nginx -s reload
+# ==========================================================

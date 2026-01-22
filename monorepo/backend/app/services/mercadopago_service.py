@@ -16,6 +16,7 @@ class MercadoPagoService:
         external_reference: Optional[str] = None,
         notification_url: Optional[str] = None,
         back_urls: Optional[Dict[str, str]] = None,
+        payment_methods: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Crea una preferencia de pago en MercadoPago.
@@ -44,8 +45,27 @@ class MercadoPagoService:
                 }
                 for item in items
             ],
-            "auto_return": "approved",
         }
+
+        # Configurar back_urls (SIEMPRE requerido por MercadoPago)
+        if back_urls:
+            preference_data["back_urls"] = back_urls
+            preference_data["auto_return"] = "approved"
+        else:
+            # Usar URLs del settings o valores por defecto
+            success_url = settings.MERCADOPAGO_SUCCESS_URL or "http://localhost:5174/checkout/success"
+            failure_url = settings.MERCADOPAGO_FAILURE_URL or "http://localhost:5174/checkout/failure"
+            pending_url = settings.MERCADOPAGO_PENDING_URL or "http://localhost:5174/checkout/pending"
+
+            # Asegurar que todas las URLs estén definidas
+            preference_data["back_urls"] = {
+                "success": success_url,
+                "failure": failure_url,
+                "pending": pending_url,
+            }
+            # Solo usar auto_return si las URLs están configuradas correctamente
+            if settings.MERCADOPAGO_SUCCESS_URL:
+                preference_data["auto_return"] = "approved"
 
         if payer:
             preference_data["payer"] = {
@@ -71,22 +91,21 @@ class MercadoPagoService:
         elif settings.MERCADOPAGO_WEBHOOK_URL:
             preference_data["notification_url"] = settings.MERCADOPAGO_WEBHOOK_URL
 
-        if back_urls:
-            preference_data["back_urls"] = back_urls
-        elif settings.MERCADOPAGO_SUCCESS_URL:
-            preference_data["back_urls"] = {
-                "success": settings.MERCADOPAGO_SUCCESS_URL,
-                "failure": settings.MERCADOPAGO_FAILURE_URL,
-                "pending": settings.MERCADOPAGO_PENDING_URL,
-            }
-
         # Configuraciones adicionales
         preference_data["statement_descriptor"] = "MORELATTO LANAS"
         preference_data["binary_mode"] = False  # Permite pagos pendientes
 
+        # Configurar métodos de pago permitidos
+        if payment_methods:
+            preference_data["payment_methods"] = payment_methods
+
+        # Debug: imprimir datos que se envían a MercadoPago
+        print(f"DEBUG: Creando preferencia de MercadoPago con datos: {preference_data}")
+
         preference_response = self.sdk.preference().create(preference_data)
 
         if preference_response["status"] != 201:
+            print(f"ERROR: Respuesta de MercadoPago: {preference_response}")
             raise Exception(f"Error al crear preferencia: {preference_response}")
 
         return preference_response["response"]

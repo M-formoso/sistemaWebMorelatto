@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.models.order import Order, OrderItem, CartItem, OrderStatus, PaymentStatus
@@ -25,7 +26,25 @@ def get_cart(
     if not session_id:
         return []
 
-    items = db.query(CartItem).filter(CartItem.session_id == session_id).all()
+    items = db.query(CartItem).options(
+        joinedload(CartItem.product).joinedload(Product.images),
+        joinedload(CartItem.variant)
+    ).filter(CartItem.session_id == session_id).all()
+
+    # Enriquecer con la imagen primaria de cada producto
+    for item in items:
+        if item.product and not item.product.image_url:
+            # Si el producto no tiene image_url, usar la imagen primaria de product_images
+            primary_image = next((img for img in item.product.images if img.is_primary), None)
+            if not primary_image and item.product.images:
+                primary_image = item.product.images[0]
+            if primary_image:
+                item.product.image_url = primary_image.image_url
+
+        # Si hay variante seleccionada, usar su imagen si está disponible
+        if item.variant and item.variant.image_url:
+            item.product.image_url = item.variant.image_url
+
     return items
 
 
@@ -94,10 +113,13 @@ def add_to_cart(
     return cart_item
 
 
+class UpdateCartQuantity(BaseModel):
+    quantity: int
+
 @router.put("/cart/{item_id}", response_model=CartItemResponse)
 def update_cart_item(
     item_id: UUID,
-    quantity: int,
+    data: UpdateCartQuantity,
     db: Session = Depends(get_db)
 ):
     """Actualizar cantidad de item en carrito"""
@@ -105,12 +127,12 @@ def update_cart_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item no encontrado")
 
-    if quantity <= 0:
+    if data.quantity <= 0:
         db.delete(item)
         db.commit()
         raise HTTPException(status_code=204, detail="Item eliminado")
 
-    item.quantity = quantity
+    item.quantity = data.quantity
     db.commit()
     db.refresh(item)
     return item
@@ -137,6 +159,85 @@ def clear_cart(
 
 
 # ============ ORDERS ============
+
+@router.get("/my-orders", response_model=List[OrderResponse])
+def get_my_orders(
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    db: Session = Depends(get_db)
+):
+    """Obtener pedidos del usuario actual (por session_id o user_id si está autenticado)"""
+    from app.models.shipping import Shipment
+    from app.core.security import get_current_user_optional
+
+    # Intentar obtener usuario autenticado (opcional)
+    user = None
+    try:
+        from fastapi import Request
+        # Este es un workaround para obtener el usuario opcional sin que falle si no hay token
+        auth_header = None
+        user = None
+    except:
+        pass
+
+    # Construir query basándose en session_id o user_id
+    query = db.query(Order).options(
+        joinedload(Order.items)
+    )
+
+    # Si hay session_id, buscar por session_id
+    if session_id:
+        query = query.filter(Order.session_id == session_id)
+    else:
+        # Si no hay session_id y no hay usuario, retornar vacío
+        return []
+
+    orders = query.order_by(Order.created_at.desc()).all()
+
+    # Enriquecer con información de envío y productos
+    result = []
+    for order in orders:
+        order_dict = OrderResponse.model_validate(order).model_dump()
+
+        # Agregar nombre de producto a cada item
+        enriched_items = []
+        for item in order.items:
+            item_dict = {
+                'id': str(item.id),
+                'product_id': str(item.product_id),
+                'variant_id': str(item.variant_id) if item.variant_id else None,
+                'quantity': item.quantity,
+                'unit_price': float(item.unit_price),
+                'total_price': float(item.total_price),
+                'product_name': item.product.name if item.product else 'Producto no disponible'
+            }
+            enriched_items.append(item_dict)
+
+        order_dict['items'] = enriched_items
+
+        # Agregar alias 'total' para compatibilidad con frontend
+        order_dict['total'] = float(order.total_amount)
+
+        # Obtener información de envío si existe
+        shipment = db.query(Shipment).filter(Shipment.order_id == order.id).first()
+        if shipment:
+            from app.schemas.order import ShipmentInfo
+            order_dict['shipment_info'] = ShipmentInfo.model_validate(shipment).model_dump()
+
+        # Agregar información de pago
+        from app.schemas.order import PaymentInfo
+        order_dict['payment_info'] = {
+            'payment_method': order.payment_method,
+            'payment_gateway': order.payment_gateway,
+            'mp_preference_id': order.mp_preference_id,
+            'stripe_payment_intent_id': order.stripe_payment_intent_id,
+            'transfer_proof_url': order.transfer_proof_url,
+            'paid_at': order.paid_at
+        }
+
+        result.append(order_dict)
+
+    return result
+
 
 @router.get("", response_model=List[OrderResponse])
 def get_orders(

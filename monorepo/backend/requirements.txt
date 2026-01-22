@@ -25,8 +25,9 @@ Pillow==10.2.0
 # CORS
 httpx==0.26.0
 
-# Payments - MercadoPago
+# Payments
 mercadopago==2.2.1
+stripe==8.0.0
 
 # AFIP - Facturación Electrónica (implementación directa con zeep)
 cryptography>=41.0.0

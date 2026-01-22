@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.db.session import get_db
@@ -14,12 +14,15 @@ router = APIRouter()
 @router.get("", response_model=List[CategoryResponse])
 def get_categories(
     is_active: bool = True,
+    section: Optional[str] = Query(None, description="Filtrar por sección: 'productos' o 'decoracion'"),
     db: Session = Depends(get_db)
 ):
     """Listar categorias"""
     query = db.query(Category)
     if is_active:
         query = query.filter(Category.is_active == True)
+    if section:
+        query = query.filter(Category.section == section)
     return query.order_by(Category.name).all()
 
 

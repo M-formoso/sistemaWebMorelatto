@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     auth, products, sales, orders, workshops, clients,
     categories, dashboard, shipping, payment_methods, news,
-    payments, invoices, users, images
+    payments, invoices, users, images, suppliers
 )
 
 api_router = APIRouter()
@@ -16,6 +16,7 @@ api_router.include_router(products.router, prefix="/products", tags=["Productos"
 api_router.include_router(sales.router, prefix="/sales", tags=["Ventas"])
 api_router.include_router(clients.router, prefix="/clients", tags=["Clientes"])
 api_router.include_router(workshops.router, prefix="/workshops", tags=["Talleres"])
+api_router.include_router(suppliers.router)
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(invoices.router)
 api_router.include_router(users.router)

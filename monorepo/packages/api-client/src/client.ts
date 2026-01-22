@@ -1,7 +1,7 @@
 // Get API URL from environment or use default
 const API_URL = (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL)
   ? import.meta.env.VITE_API_URL
-  : 'http://localhost:8001/api';
+  : 'http://localhost:8000/api';
 
 class ApiClient {
   private baseUrl: string;
@@ -111,12 +111,15 @@ class ApiClient {
 
   // ============ PRODUCTS ============
 
-  async getProducts(params?: { search?: string; category_id?: string; low_stock?: boolean; is_active?: boolean }) {
+  async getProducts(params?: { search?: string; category_id?: string; low_stock?: boolean; is_active?: boolean; show_in_decoration?: boolean; page?: number; page_size?: number }) {
     const searchParams = new URLSearchParams();
     if (params?.search) searchParams.append('search', params.search);
     if (params?.category_id) searchParams.append('category_id', params.category_id);
     if (params?.low_stock) searchParams.append('low_stock', 'true');
     if (params?.is_active !== undefined) searchParams.append('is_active', params.is_active.toString());
+    if (params?.show_in_decoration !== undefined) searchParams.append('show_in_decoration', params.show_in_decoration.toString());
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
 
     const query = searchParams.toString();
     return this.request(`/products${query ? `?${query}` : ''}`);
@@ -169,6 +172,45 @@ class ApiClient {
     return this.request(`/products/${id}/publish`, {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async unpublishProduct(id: string) {
+    return this.request(`/products/${id}/unpublish`, {
+      method: 'POST',
+    });
+  }
+
+  async toggleProductActive(id: string) {
+    return this.request(`/products/${id}/toggle-active`, {
+      method: 'PATCH',
+    });
+  }
+
+  // ============ PRODUCT VARIANTS ============
+
+  async getProductVariants(productId?: string) {
+    const query = productId ? `?product_id=${productId}` : '';
+    return this.request(`/products/variants${query}`);
+  }
+
+  async createProductVariant(productId: string, data: any) {
+    return this.request(`/products/${productId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProductVariant(variantId: string, data: any) {
+    return this.request(`/products/variants/${variantId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProductVariant(variantId: string) {
+    return this.request(`/products/variants/${variantId}`, {
+      method: 'DELETE',
     });
   }
 
@@ -392,12 +434,16 @@ class ApiClient {
 
   async getCart() {
     const sessionId = this.getSessionId();
-    return this.request(`/orders/cart?session_id=${sessionId}`);
+    return this.request('/orders/cart', {
+      headers: {
+        'X-Session-ID': sessionId,
+      },
+    });
   }
 
   async addToCart(productId: string, quantity: number = 1, variantId?: string) {
     const sessionId = this.getSessionId();
-    return this.request('/orders/cart/add', {
+    return this.request('/orders/cart', {
       method: 'POST',
       headers: {
         'X-Session-ID': sessionId,
@@ -445,7 +491,12 @@ class ApiClient {
   }
 
   async getMyOrders() {
-    return this.request('/orders/my-orders');
+    const sessionId = this.getSessionId();
+    return this.request('/orders/my-orders', {
+      headers: {
+        'X-Session-ID': sessionId,
+      },
+    });
   }
 
   async createOrder(data: any) {
@@ -460,9 +511,26 @@ class ApiClient {
   }
 
   async updateOrderStatus(id: string, status: string) {
-    return this.request(`/orders/${id}/status`, {
+    return this.request(`/orders/${id}/status?new_status=${status}`, {
+      method: 'PATCH',
+    });
+  }
+
+  async updatePaymentStatus(id: string, payment_status: string) {
+    return this.request(`/orders/${id}/payment?new_payment_status=${payment_status}`, {
+      method: 'PATCH',
+    });
+  }
+
+  async updateShipment(shipmentId: string, data: {
+    tracking_number?: string;
+    carrier?: string;
+    status?: string;
+    estimated_delivery_date?: string;
+  }) {
+    return this.request(`/shipping/shipments/${shipmentId}`, {
       method: 'PUT',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(data),
     });
   }
 
@@ -569,20 +637,26 @@ class ApiClient {
   // ============ PAYMENT METHODS ============
 
   async getPaymentMethods() {
-    return this.request('/payment-methods');
+    return this.request('/shipping/payment-methods');
   }
 
   async createPaymentMethod(data: any) {
-    return this.request('/payment-methods', {
+    return this.request('/shipping/payment-methods', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updatePaymentMethod(id: string, data: any) {
-    return this.request(`/payment-methods/${id}`, {
+    return this.request(`/shipping/payment-methods/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  async deletePaymentMethod(id: string) {
+    return this.request(`/shipping/payment-methods/${id}`, {
+      method: 'DELETE',
     });
   }
 
@@ -779,6 +853,105 @@ class ApiClient {
 
   async getUserRoles() {
     return this.request('/users/roles/list');
+  }
+
+  // ============ SUPPLIERS ============
+
+  async getSuppliers(params?: { is_active?: boolean; search?: string; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.is_active !== undefined) searchParams.append('is_active', params.is_active.toString());
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/suppliers${query ? `?${query}` : ''}`);
+  }
+
+  async getSupplier(id: string) {
+    return this.request(`/suppliers/${id}`);
+  }
+
+  async createSupplier(data: any) {
+    return this.request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupplier(id: string, data: any) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSupplier(id: string) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Supplier Purchases
+  async getSupplierPurchases(params?: { supplier_id?: string; status?: string; overdue_only?: boolean; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.supplier_id) searchParams.append('supplier_id', params.supplier_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.overdue_only) searchParams.append('overdue_only', 'true');
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/suppliers/purchases/all${query ? `?${query}` : ''}`);
+  }
+
+  async createSupplierPurchase(data: any) {
+    return this.request('/suppliers/purchases', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupplierPurchase(id: string, data: any) {
+    return this.request(`/suppliers/purchases/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSupplierPurchase(id: string) {
+    return this.request(`/suppliers/purchases/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Supplier Payments
+  async getSupplierPayments(params?: { supplier_id?: string; purchase_id?: string; skip?: number; limit?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.supplier_id) searchParams.append('supplier_id', params.supplier_id);
+    if (params?.purchase_id) searchParams.append('purchase_id', params.purchase_id);
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/suppliers/payments/all${query ? `?${query}` : ''}`);
+  }
+
+  async createSupplierPayment(data: any) {
+    return this.request('/suppliers/payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSupplierPayment(id: string) {
+    return this.request(`/suppliers/payments/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSuppliersSummary() {
+    return this.request('/suppliers/summary/all');
   }
 
   // Helper method to get full image URL

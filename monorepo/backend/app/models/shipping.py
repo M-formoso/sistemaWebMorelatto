@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, Numeric, Boolean, ForeignKey, Text, Integer, ARRAY
+import enum
+from sqlalchemy import Column, String, Numeric, Boolean, ForeignKey, Text, Integer, ARRAY, Enum, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import relationship
 
@@ -60,3 +61,62 @@ class PaymentMethod(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<PaymentMethod {self.name}>"
+
+
+class ShippingCarrier(str, enum.Enum):
+    """Carriers de envío soportados"""
+    ANDREANI = "andreani"
+    OCA = "oca"
+    CORREO_ARGENTINO = "correo_argentino"
+    MANUAL = "manual"  # Envío manual sin integración
+
+
+class ShipmentStatus(str, enum.Enum):
+    """Estados del envío"""
+    PENDING = "pending"  # Pendiente de despacho
+    LABEL_CREATED = "label_created"  # Etiqueta creada
+    IN_TRANSIT = "in_transit"  # En tránsito
+    OUT_FOR_DELIVERY = "out_for_delivery"  # En reparto
+    DELIVERED = "delivered"  # Entregado
+    FAILED = "failed"  # Fallo en la entrega
+    RETURNED = "returned"  # Devuelto al remitente
+
+
+class Shipment(Base, TimestampMixin):
+    """Envíos asociados a pedidos"""
+    __tablename__ = "shipments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+
+    # Información del carrier
+    carrier = Column(Enum(ShippingCarrier), nullable=False)
+    tracking_number = Column(String(100), nullable=True, index=True)
+    label_url = Column(String(500), nullable=True)  # URL de la etiqueta de envío
+
+    # Estado
+    status = Column(Enum(ShipmentStatus), default=ShipmentStatus.PENDING)
+    estimated_delivery_date = Column(DateTime, nullable=True)
+    actual_delivery_date = Column(DateTime, nullable=True)
+
+    # Costos
+    shipping_cost = Column(Numeric(12, 2), default=0)
+    insurance_cost = Column(Numeric(12, 2), default=0)
+
+    # Dimensiones del paquete
+    weight = Column(Numeric(8, 3), nullable=True)  # kg
+    length = Column(Numeric(8, 2), nullable=True)  # cm
+    width = Column(Numeric(8, 2), nullable=True)  # cm
+    height = Column(Numeric(8, 2), nullable=True)  # cm
+
+    # Datos adicionales del carrier
+    carrier_data = Column(JSON, nullable=True)  # Info específica del carrier
+    tracking_events = Column(JSON, nullable=True)  # Historial de tracking
+
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    order = relationship("Order", backref="shipment")
+
+    def __repr__(self):
+        return f"<Shipment {self.tracking_number} - {self.carrier}>"

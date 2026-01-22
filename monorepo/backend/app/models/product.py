@@ -16,6 +16,7 @@ class Category(Base, TimestampMixin):
     description = Column(Text, nullable=True)
     image_url = Column(String(500), nullable=True)
     parent_category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True)
+    section = Column(String(50), default="productos", nullable=False)  # "productos" o "decoracion"
     is_active = Column(Boolean, default=True)
 
     # Relationships
@@ -56,6 +57,7 @@ class Product(Base, TimestampMixin):
     weight = Column(Numeric(8, 3), nullable=True)  # peso en kg para calcular envio
     is_active = Column(Boolean, default=True)  # visible en ecommerce
     is_featured = Column(Boolean, default=False)  # destacado en home
+    show_in_decoration = Column(Boolean, default=False)  # mostrar en seccion decoracion
 
     # Variantes: un producto puede ser variante de otro (ej: diferentes colores)
     parent_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
