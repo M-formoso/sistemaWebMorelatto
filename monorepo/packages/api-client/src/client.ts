@@ -1,6 +1,7 @@
 // Get API URL from environment or use default
-const API_URL = (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL)
-  ? import.meta.env.VITE_API_URL
+// Next.js inlines NEXT_PUBLIC_* variables at build time
+const API_URL = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL
+  ? process.env.NEXT_PUBLIC_API_URL
   : 'http://localhost:8000/api';
 
 class ApiClient {
