@@ -33,7 +33,7 @@ DATABASE_URL=postgresql://...
 
 # Seguridad
 SECRET_KEY=tu_clave_secreta_muy_larga_y_segura_123456789
-ALGORITHM=HS256
+ALGORITHM=HS256sigvue vayt
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # App
