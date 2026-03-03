@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();

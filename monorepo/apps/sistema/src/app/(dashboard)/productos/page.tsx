@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 import { formatPrice } from "@/lib/utils";
 
 export default function ProductosPage() {

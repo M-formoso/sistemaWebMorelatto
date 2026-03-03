@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function TalleresPage() {

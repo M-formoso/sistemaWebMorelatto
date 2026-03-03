@@ -5,7 +5,7 @@ import { Bell, LogOut, Menu, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth-store";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 export function Header() {
   const router = useRouter();

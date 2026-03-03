@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCartStore } from "@/stores/cart-store";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/utils";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 export default function ProductoPage() {
   const params = useParams();

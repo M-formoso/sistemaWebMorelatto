@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 export function CategoriesSection() {
   const { data: categories, isLoading } = useQuery({

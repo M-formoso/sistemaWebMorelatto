@@ -37,7 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function TallerPage() {

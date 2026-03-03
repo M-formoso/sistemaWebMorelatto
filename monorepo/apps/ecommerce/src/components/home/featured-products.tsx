@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/products/product-card";
 import { ProductCardSkeleton } from "@/components/products/product-card-skeleton";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 export function FeaturedProducts() {
   const { data, isLoading, error } = useQuery({

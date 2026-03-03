@@ -11,7 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 import { formatPrice } from "@/lib/utils";
 
 export default function DashboardPage() {

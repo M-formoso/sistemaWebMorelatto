@@ -37,7 +37,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/utils";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 interface ShippingRate {
   id: string;

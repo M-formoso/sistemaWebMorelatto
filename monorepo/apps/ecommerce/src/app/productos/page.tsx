@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { ProductCard } from "@/components/products/product-card";
 import { ProductCardSkeleton } from "@/components/products/product-card-skeleton";
-import { api } from "@morelatto/api-client";
+import { api } from "@/lib/api-client";
 
 function ProductosContent() {
   const searchParams = useSearchParams();

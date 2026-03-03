@@ -12,7 +12,7 @@ const nextConfig = {
       },
     ],
   },
-  transpilePackages: ['@morelatto/api-client'],
+  output: 'standalone',
 };
 
 export default nextConfig;
