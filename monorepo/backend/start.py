@@ -5,11 +5,18 @@ import os
 import subprocess
 import sys
 
-# Importar modelos a nivel de módulo (requerido para import *)
+# Importar modelos a nivel de módulo
 from app.db.base import Base
 from app.db.session import engine
-from app.models import user, product, category, order, workshop, sale, client
-from app.models import shipping, news, supplier
+# Importar todos los modelos para que SQLAlchemy los registre
+from app.models import (
+    User, Product, ProductVariant, Category, ProductImage,
+    Sale, SaleItem, Order, OrderItem, CartItem,
+    Workshop, WorkshopClient, Attendance, WorkshopProject, ProjectPurchase, WorkshopImage,
+    Movement, PaymentInstallment, Client,
+    ShippingZone, ShippingRate, PaymentMethod,
+    News, NewsImage, Supplier, SupplierPurchase, SupplierPayment
+)
 
 def create_tables():
     """Crear todas las tablas en la base de datos"""
