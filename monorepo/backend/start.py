@@ -5,23 +5,25 @@ import os
 import subprocess
 import sys
 
-def main():
-    print("=== Iniciando servidor Morelatto ===")
+# Importar modelos a nivel de módulo (requerido para import *)
+from app.db.base import Base
+from app.db.session import engine
+from app.models import user, product, category, order, workshop, sale, client
+from app.models import shipping, news, supplier
 
-    # 1. Crear todas las tablas
+def create_tables():
+    """Crear todas las tablas en la base de datos"""
     print("1. Creando tablas en la base de datos...")
     try:
-        from app.db.base import Base
-        from app.db.session import engine
-        from app.models import *  # noqa - importa todos los modelos
-
         Base.metadata.create_all(bind=engine)
         print("   Tablas creadas correctamente")
+        return True
     except Exception as e:
         print(f"   Error creando tablas: {e}")
-        # Continuar de todos modos, las tablas pueden ya existir
+        return False
 
-    # 2. Ejecutar migraciones de alembic (si hay)
+def run_migrations():
+    """Ejecutar migraciones de alembic"""
     print("2. Ejecutando migraciones de alembic...")
     try:
         result = subprocess.run(
@@ -35,14 +37,20 @@ def main():
             print(f"   Alembic salió con código {result.returncode}")
             if result.stderr:
                 print(f"   Stderr: {result.stderr[:500]}")
-            # No fallar - la migración puede ya estar aplicada o no ser necesaria
     except Exception as e:
         print(f"   Error en migraciones: {e}")
 
-    # 3. Iniciar uvicorn
+def start_server():
+    """Iniciar uvicorn"""
     print("3. Iniciando servidor uvicorn...")
     port = os.environ.get("PORT", "8000")
     os.execvp("uvicorn", ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port])
+
+def main():
+    print("=== Iniciando servidor Morelatto ===")
+    create_tables()
+    run_migrations()
+    start_server()
 
 if __name__ == "__main__":
     main()
