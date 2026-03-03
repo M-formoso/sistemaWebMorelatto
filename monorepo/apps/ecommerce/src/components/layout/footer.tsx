@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Instagram, Facebook, Mail, MapPin, Phone } from "lucide-react";
 
 const footerLinks = {
@@ -27,9 +28,13 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="inline-block">
-              <span className="font-display text-2xl font-bold text-morelatto-orange">
-                Morelatto
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Morelatto Lanas"
+                width={120}
+                height={45}
+                className="h-10 w-auto object-contain"
+              />
             </Link>
             <p className="text-sm text-muted-foreground">
               Lanas de alta calidad y talleres de tejido para crear con amor.

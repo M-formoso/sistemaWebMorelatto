@@ -29,12 +29,15 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="relative h-10 w-40">
-            <span className="font-display text-2xl font-bold text-morelatto-orange">
-              Morelatto
-            </span>
-          </div>
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="Morelatto Lanas"
+            width={140}
+            height={50}
+            className="h-10 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* Desktop Navigation */}

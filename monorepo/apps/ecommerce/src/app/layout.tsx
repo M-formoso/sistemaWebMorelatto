@@ -32,6 +32,10 @@ export const metadata: Metadata = {
     "Argentina",
   ],
   authors: [{ name: "Morelatto Lanas" }],
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     type: "website",
     locale: "es_AR",

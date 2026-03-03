@@ -12,6 +12,10 @@ export const metadata: Metadata = {
     template: "%s | Sistema Morelatto",
   },
   description: "Sistema de gestión Morelatto Lanas",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
