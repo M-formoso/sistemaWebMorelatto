@@ -54,32 +54,10 @@ export function CategoriesSection() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Categorías de ejemplo */}
-            {[
-              { name: "Lanas gruesas", icon: "🧶", count: 45 },
-              { name: "Lanas finas", icon: "🪡", count: 32 },
-              { name: "Agujas y accesorios", icon: "📍", count: 28 },
-              { name: "Kits para tejer", icon: "🎁", count: 15 },
-            ].map((category, i) => (
-              <Link
-                key={i}
-                href={`/productos?categoria=${category.name.toLowerCase()}`}
-                className="group relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:border-primary hover:shadow-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-2xl transition-colors group-hover:bg-primary">
-                    {category.icon}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{category.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {category.count} productos
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="rounded-lg border bg-muted/50 p-8 text-center">
+            <p className="text-muted-foreground">
+              No hay categorías disponibles aún.
+            </p>
           </div>
         )}
       </div>
