@@ -17,10 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app ./app
 COPY ./alembic ./alembic
 COPY ./alembic.ini ./alembic.ini
+COPY ./start.py ./start.py
 
 EXPOSE 8000
 
-# Create tables first, then run migrations, then start server
-CMD python -c "from app.db.base import Base; from app.db.session import engine; from app.models import *; Base.metadata.create_all(bind=engine); print('Tables created')" && \
-    alembic upgrade head && \
-    uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use start script that creates tables before running migrations
+CMD ["python", "start.py"]
