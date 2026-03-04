@@ -48,8 +48,9 @@ export default function VentasPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string>("Consumidor Final");
+  const [paymentMethod, setPaymentMethod] = useState<string>("efectivo");
   const [items, setItems] = useState<SaleItem[]>([]);
   const [searchProduct, setSearchProduct] = useState("");
 
@@ -90,8 +91,9 @@ export default function VentasPage() {
 
   const handleCloseDialog = () => {
     setShowDialog(false);
-    setSelectedClient("");
-    setPaymentMethod("cash");
+    setSelectedClient(null);
+    setClientName("Consumidor Final");
+    setPaymentMethod("efectivo");
     setItems([]);
     setSearchProduct("");
   };
@@ -143,15 +145,19 @@ export default function VentasPage() {
 
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
 
+    const selectedClientData = clients?.find((c: any) => c.id === selectedClient);
+
     createSaleMutation.mutate({
-      client_id: selectedClient || null,
+      client_id: selectedClient || undefined,
+      client_name: selectedClientData?.name || clientName,
+      client_email: selectedClientData?.email || undefined,
+      client_phone: selectedClientData?.phone || undefined,
       payment_method: paymentMethod,
       items: items.map((i) => ({
         product_id: i.product_id,
         quantity: i.quantity,
         unit_price: i.unit_price,
       })),
-      total,
     });
   };
 
@@ -254,11 +260,11 @@ export default function VentasPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {sale.payment_method === "cash"
+                        {sale.payment_method === "efectivo"
                           ? "Efectivo"
-                          : sale.payment_method === "card"
+                          : sale.payment_method === "tarjeta"
                           ? "Tarjeta"
-                          : sale.payment_method === "transfer"
+                          : sale.payment_method === "transferencia"
                           ? "Transferencia"
                           : sale.payment_method}
                       </Badge>
@@ -289,12 +295,15 @@ export default function VentasPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cliente (opcional)</Label>
-                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <Select
+                  value={selectedClient || "none"}
+                  onValueChange={(val) => setSelectedClient(val === "none" ? null : val)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin cliente</SelectItem>
+                    <SelectItem value="none">Consumidor Final</SelectItem>
                     {clients?.map((client: any) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -310,13 +319,25 @@ export default function VentasPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash">Efectivo</SelectItem>
-                    <SelectItem value="card">Tarjeta</SelectItem>
-                    <SelectItem value="transfer">Transferencia</SelectItem>
+                    <SelectItem value="efectivo">Efectivo</SelectItem>
+                    <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                    <SelectItem value="transferencia">Transferencia</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+
+            {/* Nombre de cliente si no selecciona uno existente */}
+            {!selectedClient && (
+              <div className="space-y-2">
+                <Label>Nombre del cliente</Label>
+                <Input
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="Nombre del cliente"
+                />
+              </div>
+            )}
 
             {/* Search products */}
             <div className="space-y-2">
