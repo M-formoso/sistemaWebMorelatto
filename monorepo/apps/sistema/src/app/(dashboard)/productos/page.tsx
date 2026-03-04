@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Globe, EyeOff, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,13 +108,14 @@ export default function ProductosPage() {
               </TableHeader>
               <TableBody>
                 {products.map((product: any) => {
-                  const primaryImage = product.images?.find((img: any) => img.is_primary)?.url
-                    || product.images?.[0]?.url;
+                  const primaryImage = product.images?.find((img: any) => img.is_primary)?.image_url
+                    || product.images?.[0]?.image_url;
+                  const isPublished = product.is_active && product.category_id;
 
                   return (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
                       <TableCell>
-                        <div className="flex items-center gap-3">
+                        <Link href={`/productos/${product.id}`} className="flex items-center gap-3">
                           <div className="relative h-10 w-10 overflow-hidden rounded-md bg-muted">
                             {primaryImage ? (
                               <Image
@@ -125,19 +126,24 @@ export default function ProductosPage() {
                               />
                             ) : (
                               <div className="flex h-full items-center justify-center text-lg">
-                                📦
+                                🧶
                               </div>
                             )}
                           </div>
                           <div>
-                            <p className="font-medium">{product.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{product.name}</p>
+                              {product.is_featured && (
+                                <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                              )}
+                            </div>
                             {product.category && (
                               <p className="text-sm text-muted-foreground">
                                 {product.category.name}
                               </p>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         {product.code || "-"}
@@ -155,11 +161,19 @@ export default function ProductosPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={product.is_active ? "default" : "secondary"}
-                        >
-                          {product.is_active ? "Activo" : "Inactivo"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {isPublished ? (
+                            <Badge className="bg-green-600 hover:bg-green-700">
+                              <Globe className="h-3 w-3 mr-1" />
+                              Publicado
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <EyeOff className="h-3 w-3 mr-1" />
+                              No publicado
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -178,22 +192,22 @@ export default function ProductosPage() {
                             <DropdownMenuItem
                               onClick={() => toggleActiveMutation.mutate(product.id)}
                             >
-                              {product.is_active ? (
+                              {isPublished ? (
                                 <>
                                   <EyeOff className="mr-2 h-4 w-4" />
-                                  Desactivar
+                                  Despublicar
                                 </>
                               ) : (
                                 <>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Activar
+                                  <Globe className="mr-2 h-4 w-4" />
+                                  Publicar
                                 </>
                               )}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => {
-                                if (confirm("¿Eliminar este producto?")) {
+                                if (confirm("Eliminar este producto?")) {
                                   deleteProductMutation.mutate(product.id);
                                 }
                               }}
