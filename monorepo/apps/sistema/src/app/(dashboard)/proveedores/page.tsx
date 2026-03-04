@@ -37,21 +37,25 @@ import { formatPrice } from "@/lib/utils";
 
 interface SupplierForm {
   name: string;
-  contact_name: string;
+  business_name: string;
+  tax_id: string;
   email: string;
   phone: string;
   address: string;
-  cuit: string;
+  city: string;
+  province: string;
   notes: string;
 }
 
 const defaultForm: SupplierForm = {
   name: "",
-  contact_name: "",
+  business_name: "",
+  tax_id: "",
   email: "",
   phone: "",
   address: "",
-  cuit: "",
+  city: "",
+  province: "",
   notes: "",
 };
 
@@ -123,11 +127,13 @@ export default function ProveedoresPage() {
     setEditingId(supplier.id);
     setForm({
       name: supplier.name,
-      contact_name: supplier.contact_name || "",
+      business_name: supplier.business_name || "",
+      tax_id: supplier.tax_id || "",
       email: supplier.email || "",
       phone: supplier.phone || "",
       address: supplier.address || "",
-      cuit: supplier.cuit || "",
+      city: supplier.city || "",
+      province: supplier.province || "",
       notes: supplier.notes || "",
     });
     setShowDialog(true);
@@ -237,7 +243,7 @@ export default function ProveedoresPage() {
                       <TableHead>Proveedor</TableHead>
                       <TableHead>Contacto</TableHead>
                       <TableHead>CUIT</TableHead>
-                      <TableHead>Saldo</TableHead>
+                      <TableHead>Deuda</TableHead>
                       <TableHead className="w-[100px]">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -247,23 +253,23 @@ export default function ProveedoresPage() {
                         <TableCell>
                           <div>
                             <p className="font-medium">{supplier.name}</p>
-                            {supplier.email && (
-                              <p className="text-sm text-muted-foreground">{supplier.email}</p>
+                            {supplier.business_name && (
+                              <p className="text-sm text-muted-foreground">{supplier.business_name}</p>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            {supplier.contact_name && <p>{supplier.contact_name}</p>}
+                            {supplier.email && <p>{supplier.email}</p>}
                             {supplier.phone && (
                               <p className="text-sm text-muted-foreground">{supplier.phone}</p>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{supplier.cuit || "-"}</TableCell>
+                        <TableCell>{supplier.tax_id || "-"}</TableCell>
                         <TableCell>
-                          <span className={supplier.balance > 0 ? "text-red-600 font-medium" : ""}>
-                            {formatPrice(supplier.balance || 0)}
+                          <span className={supplier.total_debt > 0 ? "text-red-600 font-medium" : ""}>
+                            {formatPrice(supplier.total_debt || 0)}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -372,7 +378,7 @@ export default function ProveedoresPage() {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nombre/Razon social *</Label>
+              <Label>Nombre *</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -382,18 +388,18 @@ export default function ProveedoresPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Persona de contacto</Label>
+                <Label>Razon social</Label>
                 <Input
-                  value={form.contact_name}
-                  onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-                  placeholder="Nombre de contacto"
+                  value={form.business_name}
+                  onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+                  placeholder="Razon social"
                 />
               </div>
               <div className="space-y-2">
                 <Label>CUIT</Label>
                 <Input
-                  value={form.cuit}
-                  onChange={(e) => setForm({ ...form, cuit: e.target.value })}
+                  value={form.tax_id}
+                  onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
                   placeholder="20-12345678-9"
                 />
               </div>
@@ -424,8 +430,27 @@ export default function ProveedoresPage() {
               <Input
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Direccion del proveedor"
+                placeholder="Calle y numero"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Ciudad</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  placeholder="Ciudad"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Provincia</Label>
+                <Input
+                  value={form.province}
+                  onChange={(e) => setForm({ ...form, province: e.target.value })}
+                  placeholder="Provincia"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
