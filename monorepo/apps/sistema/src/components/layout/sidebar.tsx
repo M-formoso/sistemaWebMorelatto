@@ -15,6 +15,8 @@ import {
   BarChart3,
   Tags,
   Building2,
+  UserCog,
+  Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -29,7 +31,9 @@ const navigation = [
   { name: "Talleres", href: "/talleres", icon: Calendar },
   { name: "Proveedores", href: "/proveedores", icon: Building2 },
   { name: "Envíos", href: "/envios", icon: Truck },
+  { name: "Noticias", href: "/noticias", icon: Newspaper },
   { name: "Reportes", href: "/reportes", icon: BarChart3 },
+  { name: "Usuarios", href: "/usuarios", icon: UserCog },
   { name: "Configuración", href: "/configuracion", icon: Settings },
 ];
 

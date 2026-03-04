@@ -667,8 +667,16 @@ class ApiClient {
     return this.request('/news');
   }
 
+  async getPublicNews() {
+    return this.request('/news/public');
+  }
+
   async getNewsItem(id: string) {
     return this.request(`/news/${id}`);
+  }
+
+  async getPublicNewsItem(idOrSlug: string) {
+    return this.request(`/news/public/${idOrSlug}`);
   }
 
   async createNews(data: any) {

@@ -663,8 +663,21 @@ class ApiClient {
 
   // ============ NEWS ============
 
-  async getNews() {
-    return this.request('/news');
+  async getNews(params?: { search?: string; is_published?: boolean }) {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.is_published !== undefined) searchParams.append('is_published', params.is_published.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/news${query ? `?${query}` : ''}`);
+  }
+
+  async getPublicNews() {
+    return this.request('/news/public');
+  }
+
+  async getPublicNewsItem(idOrSlug: string) {
+    return this.request(`/news/public/${idOrSlug}`);
   }
 
   async getNewsItem(id: string) {
