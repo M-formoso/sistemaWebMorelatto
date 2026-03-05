@@ -21,6 +21,7 @@ email-validator==2.1.0.post1
 
 # Image Processing
 Pillow==10.2.0
+cloudinary==1.36.0
 
 # CORS
 httpx==0.26.0

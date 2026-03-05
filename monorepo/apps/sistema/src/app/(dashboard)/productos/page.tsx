@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Globe, EyeOff, Star } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Globe, EyeOff, Star, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,12 +67,20 @@ export default function ProductosPage() {
             Gestión del catálogo de productos
           </p>
         </div>
-        <Button asChild>
-          <Link href="/productos/nuevo">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo producto
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/productos/importar">
+              <Upload className="mr-2 h-4 w-4" />
+              Importar
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/productos/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo producto
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -7,7 +7,15 @@ from fastapi import UploadFile, HTTPException
 from PIL import Image
 import io
 
-# Directorio para almacenar imagenes
+# Cloudinary (opcional - solo si esta configurado)
+try:
+    import cloudinary
+    import cloudinary.uploader
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+
+# Directorio para almacenar imagenes (fallback local)
 UPLOAD_DIR = Path("uploads/products")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -16,6 +24,27 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_IMAGE_WIDTH = 1920
 MAX_IMAGE_HEIGHT = 1920
+
+
+def get_cloudinary_config():
+    """Verifica si Cloudinary esta configurado"""
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+    api_key = os.getenv("CLOUDINARY_API_KEY")
+    api_secret = os.getenv("CLOUDINARY_API_SECRET")
+
+    if cloud_name and api_key and api_secret:
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            secure=True
+        )
+        return True
+    return False
+
+
+# Verificar si usar Cloudinary
+USE_CLOUDINARY = CLOUDINARY_AVAILABLE and get_cloudinary_config()
 
 
 class ImageService:
@@ -40,7 +69,7 @@ class ImageService:
         except Exception:
             raise HTTPException(
                 status_code=400,
-                detail="El archivo no es una imagen válida"
+                detail="El archivo no es una imagen valida"
             )
 
     @staticmethod
@@ -60,20 +89,40 @@ class ImageService:
         return image
 
     @staticmethod
-    async def upload_image(file: UploadFile, optimize: bool = True) -> str:
-        """
-        Sube una imagen y retorna la URL relativa
+    async def upload_to_cloudinary(file: UploadFile) -> str:
+        """Sube imagen a Cloudinary"""
+        try:
+            # Leer y optimizar imagen
+            file_content = await file.read()
+            image = Image.open(io.BytesIO(file_content))
+            image = ImageService.optimize_image(image)
 
-        Args:
-            file: Archivo a subir
-            optimize: Si debe optimizar la imagen
+            # Convertir a bytes
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+            img_byte_arr.seek(0)
 
-        Returns:
-            URL relativa de la imagen subida
-        """
-        # Validar imagen
-        ImageService.validate_image(file)
+            # Subir a Cloudinary
+            result = cloudinary.uploader.upload(
+                img_byte_arr,
+                folder="morelatto/products",
+                resource_type="image",
+                transformation=[
+                    {"width": MAX_IMAGE_WIDTH, "height": MAX_IMAGE_HEIGHT, "crop": "limit"}
+                ]
+            )
 
+            return result["secure_url"]
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al subir imagen a Cloudinary: {str(e)}"
+            )
+
+    @staticmethod
+    async def upload_to_local(file: UploadFile, optimize: bool = True) -> str:
+        """Sube imagen al filesystem local"""
         # Generar nombre unico
         file_ext = Path(file.filename or "").suffix.lower()
         unique_filename = f"{uuid.uuid4()}{file_ext}"
@@ -105,25 +154,56 @@ class ImageService:
             )
 
     @staticmethod
-    def delete_image(image_url: str) -> bool:
+    async def upload_image(file: UploadFile, optimize: bool = True) -> str:
         """
-        Elimina una imagen del filesystem
+        Sube una imagen y retorna la URL
+        Usa Cloudinary si esta configurado, sino filesystem local
 
         Args:
-            image_url: URL relativa de la imagen
+            file: Archivo a subir
+            optimize: Si debe optimizar la imagen
+
+        Returns:
+            URL de la imagen subida
+        """
+        # Validar imagen
+        ImageService.validate_image(file)
+
+        if USE_CLOUDINARY:
+            return await ImageService.upload_to_cloudinary(file)
+        else:
+            return await ImageService.upload_to_local(file, optimize)
+
+    @staticmethod
+    def delete_image(image_url: str) -> bool:
+        """
+        Elimina una imagen
+
+        Args:
+            image_url: URL de la imagen
 
         Returns:
             True si se elimino exitosamente
         """
         try:
-            # Extraer filename de la URL
-            filename = Path(image_url).name
-            file_path = UPLOAD_DIR / filename
-
-            if file_path.exists():
-                file_path.unlink()
+            # Si es URL de Cloudinary, eliminar de Cloudinary
+            if USE_CLOUDINARY and "cloudinary" in image_url:
+                # Extraer public_id de la URL
+                # URL format: https://res.cloudinary.com/{cloud}/image/upload/v123/morelatto/products/abc.jpg
+                parts = image_url.split("/")
+                # Obtener morelatto/products/filename sin extension
+                public_id = "/".join(parts[-3:]).rsplit(".", 1)[0]
+                cloudinary.uploader.destroy(public_id)
                 return True
-            return False
+            else:
+                # Eliminar de filesystem local
+                filename = Path(image_url).name
+                file_path = UPLOAD_DIR / filename
+
+                if file_path.exists():
+                    file_path.unlink()
+                    return True
+                return False
         except Exception as e:
             print(f"Error al eliminar imagen: {e}")
             return False
