@@ -34,9 +34,9 @@ export function ImageManager({ productId, images, onImagesChange }: ImageManager
       formData.append("file", file);
       const uploadResult = await api.uploadImage(formData);
 
-      // Agregar imagen al producto
+      // Agregar imagen al producto (backend devuelve image_url, no url)
       await api.addProductImage(productId, {
-        image_url: uploadResult.url,
+        image_url: uploadResult.image_url || uploadResult.url,
         is_primary: images.length === 0,
         display_order: images.length,
       });

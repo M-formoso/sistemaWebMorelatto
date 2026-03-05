@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,14 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCartStore } from "@/stores/cart-store";
+import { useFavoritesStore } from "@/stores/favorites-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useToast } from "@/hooks/use-toast";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 
 export default function ProductoPage() {
   const params = useParams();
+  const router = useRouter();
   const productId = params.id as string;
   const { addItem, setIsOpen } = useCartStore();
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
+  const { isAuthenticated } = useAuthStore();
   const { toast } = useToast();
 
   const [quantity, setQuantity] = useState(1);
@@ -60,7 +65,8 @@ export default function ProductoPage() {
 
   const images = product.images || [];
   const currentImage = images[selectedImageIndex];
-  const imageUrl = currentImage ? api.getImageUrl(currentImage.url) : null;
+  // Support both url and image_url fields
+  const imageUrl = currentImage ? api.getImageUrl(currentImage.url || currentImage.image_url) : null;
 
   const variants = product.variants || [];
   const currentVariant = selectedVariant
@@ -68,7 +74,8 @@ export default function ProductoPage() {
     : null;
 
   const currentPrice = currentVariant?.price || product.price;
-  const currentStock = currentVariant?.stock ?? product.stock ?? 0;
+  // Support both stock and stock_quantity fields
+  const currentStock = currentVariant?.stock ?? currentVariant?.stock_quantity ?? product.stock ?? product.stock_quantity ?? 0;
   const isOutOfStock = currentStock <= 0;
 
   const hasDiscount = product.compare_price && product.compare_price > currentPrice;
@@ -106,6 +113,37 @@ export default function ProductoPage() {
 
     setIsOpen(true);
   };
+
+  const handleToggleFavorite = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Iniciá sesión",
+        description: "Debés iniciar sesión para guardar favoritos",
+      });
+      router.push(`/login?redirect=/productos/${productId}`);
+      return;
+    }
+
+    const primaryImage = images[0]?.url;
+    const productIsFavorite = isFavorite(product.id);
+
+    toggleFavorite({
+      id: product.id,
+      name: product.name,
+      price: currentPrice,
+      image_url: primaryImage,
+      slug: product.id,
+    });
+
+    toast({
+      title: productIsFavorite ? "Eliminado de favoritos" : "Agregado a favoritos",
+      description: productIsFavorite
+        ? `${product.name} fue eliminado de tus favoritos`
+        : `${product.name} fue agregado a tus favoritos`,
+    });
+  };
+
+  const productIsFavorite = product ? isFavorite(product.id) : false;
 
   return (
     <div className="container py-8">
@@ -159,7 +197,7 @@ export default function ProductoPage() {
                   }`}
                 >
                   <Image
-                    src={api.getImageUrl(img.url) || ""}
+                    src={api.getImageUrl(img.url || img.image_url) || ""}
                     alt={`${product.name} - ${idx + 1}`}
                     fill
                     className="object-cover"
@@ -260,8 +298,15 @@ export default function ProductoPage() {
               <ShoppingCart className="mr-2 h-5 w-5" />
               {isOutOfStock ? "Sin stock" : "Agregar al carrito"}
             </Button>
-            <Button size="lg" variant="outline">
-              <Heart className="h-5 w-5" />
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleToggleFavorite}
+              className={cn(
+                productIsFavorite && "bg-red-50 border-red-300 text-red-600 hover:bg-red-100"
+              )}
+            >
+              <Heart className={cn("h-5 w-5", productIsFavorite && "fill-current")} />
             </Button>
             <Button size="lg" variant="outline">
               <Share2 className="h-5 w-5" />

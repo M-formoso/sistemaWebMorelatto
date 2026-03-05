@@ -59,6 +59,34 @@ def get_sales(
     return sales
 
 
+@router.get("/summary")
+def get_sales_summary(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Obtener resumen de ventas"""
+    query = db.query(
+        func.count(Sale.id).label("total_sales"),
+        func.sum(Sale.total).label("total_amount"),
+        func.avg(Sale.total).label("average_sale")
+    )
+
+    if date_from:
+        query = query.filter(Sale.date >= date_from)
+    if date_to:
+        query = query.filter(Sale.date <= date_to)
+
+    result = query.first()
+
+    return {
+        "total_sales": result.total_sales or 0,
+        "total_amount": float(result.total_amount or 0),
+        "average_sale": float(result.average_sale or 0)
+    }
+
+
 @router.get("/{sale_id}", response_model=SaleResponse)
 def get_sale(
     sale_id: UUID,
@@ -147,31 +175,3 @@ def create_sale(
     db.refresh(sale)
 
     return sale
-
-
-@router.get("/stats/summary")
-def get_sales_summary(
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
-    db: Session = Depends(get_db),
-    _: dict = Depends(get_current_admin)
-):
-    """Obtener resumen de ventas"""
-    query = db.query(
-        func.count(Sale.id).label("total_sales"),
-        func.sum(Sale.total).label("total_amount"),
-        func.avg(Sale.total).label("average_sale")
-    )
-
-    if date_from:
-        query = query.filter(Sale.date >= date_from)
-    if date_to:
-        query = query.filter(Sale.date <= date_to)
-
-    result = query.first()
-
-    return {
-        "total_sales": result.total_sales or 0,
-        "total_amount": float(result.total_amount or 0),
-        "average_sale": float(result.average_sale or 0)
-    }

@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/stores/cart-store";
+import { useFavoritesStore } from "@/stores/favorites-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/utils";
 import { api } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: {
@@ -18,10 +21,11 @@ interface ProductCardProps {
     code?: string;
     price: number;
     compare_price?: number;
-    images?: Array<{ url: string; is_primary?: boolean }>;
+    images?: Array<{ url?: string; image_url?: string; is_primary?: boolean }>;
     image_url?: string;
     category?: { name: string };
     stock?: number;
+    stock_quantity?: number;
     weight?: number;
     variants?: Array<any>;
   };
@@ -29,13 +33,22 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem, setIsOpen } = useCartStore();
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
+  const { isAuthenticated } = useAuthStore();
   const { toast } = useToast();
 
-  // Get primary image
-  const primaryImage = product.images?.find((img) => img.is_primary)?.url
-    || product.images?.[0]?.url
-    || product.image_url;
+  const productIsFavorite = isFavorite(product.id);
 
+  // Get primary image - support both url and image_url fields
+  const getPrimaryImageUrl = () => {
+    const primaryImg = product.images?.find((img) => img.is_primary);
+    if (primaryImg) return primaryImg.url || primaryImg.image_url;
+    const firstImg = product.images?.[0];
+    if (firstImg) return firstImg.url || firstImg.image_url;
+    return product.image_url;
+  };
+
+  const primaryImage = getPrimaryImageUrl();
   const imageUrl = primaryImage ? api.getImageUrl(primaryImage) : null;
 
   const hasDiscount = product.compare_price && product.compare_price > product.price;
@@ -43,7 +56,9 @@ export function ProductCard({ product }: ProductCardProps) {
     ? Math.round((1 - product.price / product.compare_price!) * 100)
     : 0;
 
-  const isOutOfStock = product.stock !== undefined && product.stock <= 0;
+  // Support both stock and stock_quantity fields
+  const stockValue = product.stock ?? product.stock_quantity;
+  const isOutOfStock = stockValue !== undefined && stockValue <= 0;
   const hasVariants = product.variants && product.variants.length > 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -73,6 +88,35 @@ export function ProductCard({ product }: ProductCardProps) {
     });
 
     setIsOpen(true);
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Iniciá sesión",
+        description: "Debés iniciar sesión para guardar favoritos",
+      });
+      window.location.href = "/login?redirect=/productos";
+      return;
+    }
+
+    toggleFavorite({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image_url: primaryImage || undefined,
+      slug: product.id,
+    });
+
+    toast({
+      title: productIsFavorite ? "Eliminado de favoritos" : "Agregado a favoritos",
+      description: productIsFavorite
+        ? `${product.name} fue eliminado de tus favoritos`
+        : `${product.name} fue agregado a tus favoritos`,
+    });
   };
 
   return (
@@ -110,10 +154,13 @@ export function ProductCard({ product }: ProductCardProps) {
               <Button
                 size="icon"
                 variant="secondary"
-                className="h-8 w-8 rounded-full"
-                onClick={(e) => e.preventDefault()}
+                className={cn(
+                  "h-8 w-8 rounded-full",
+                  productIsFavorite && "bg-red-100 text-red-600 hover:bg-red-200"
+                )}
+                onClick={handleToggleFavorite}
               >
-                <Heart className="h-4 w-4" />
+                <Heart className={cn("h-4 w-4", productIsFavorite && "fill-current")} />
               </Button>
             </div>
           </div>
