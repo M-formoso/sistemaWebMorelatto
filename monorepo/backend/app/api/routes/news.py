@@ -34,10 +34,12 @@ class NewsBase(BaseModel):
     title: str
     slug: str
     excerpt: Optional[str] = None
-    content: str
+    content: Optional[str] = None
     image_url: Optional[str] = None
-    published_date: date
+    published_date: Optional[date] = None
+    published_at: Optional[str] = None  # Alias del frontend
     is_active: bool = True
+    is_published: bool = True  # Alias del frontend
     card_size: Optional[str] = "medium"  # small, medium, large
     layout_type: Optional[str] = "grid"  # grid, list, featured
 
@@ -50,6 +52,13 @@ class NewsBase(BaseModel):
         # Solo permitir letras, números, guiones y guiones bajos (más flexible)
         if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError('El slug solo puede contener letras, números, guiones (-) y guiones bajos (_)')
+        return v
+
+    @field_validator('excerpt', 'content', 'image_url', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
         return v
 
 
@@ -160,7 +169,22 @@ def create_news(
     if existing:
         raise HTTPException(status_code=400, detail="Ya existe una novedad con ese slug")
 
-    db_news = News(**news.model_dump())
+    data = news.model_dump(exclude={'published_at', 'is_published'})
+
+    # Si viene published_at pero no published_date, usar published_at
+    if news.published_at and not news.published_date:
+        try:
+            data['published_date'] = date.fromisoformat(news.published_at[:10])
+        except:
+            data['published_date'] = date.today()
+    elif not data.get('published_date'):
+        data['published_date'] = date.today()
+
+    # Usar is_published como is_active si se envió
+    if news.is_published is not None:
+        data['is_active'] = news.is_published
+
+    db_news = News(**data)
     db.add(db_news)
     db.commit()
     db.refresh(db_news)

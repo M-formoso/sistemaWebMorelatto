@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_serializer
+from pydantic import BaseModel, EmailStr, field_serializer, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 from uuid import UUID
@@ -25,6 +25,22 @@ class SupplierBase(BaseModel):
     notes: Optional[str] = None
     is_active: bool = True
 
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('business_name', 'tax_id', 'phone', 'address', 'city', 'province',
+                     'postal_code', 'bank_name', 'account_number', 'account_type',
+                     'cbu', 'alias', 'notes', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
+
 
 class SupplierCreate(SupplierBase):
     pass
@@ -47,6 +63,22 @@ class SupplierUpdate(BaseModel):
     alias: Optional[str] = None
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('name', 'business_name', 'tax_id', 'phone', 'address', 'city', 'province',
+                     'postal_code', 'bank_name', 'account_number', 'account_type',
+                     'cbu', 'alias', 'notes', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 
 class SupplierResponse(SupplierBase):
