@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Minus, Plus, Trash2, ShoppingBag, LogIn } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,13 +14,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { formatPrice } from "@/lib/utils";
 
 export function CartSheet() {
+  const router = useRouter();
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, totalPrice } =
     useCartStore();
+  const { isAuthenticated } = useAuthStore();
 
   const total = totalPrice();
+
+  const handleCheckout = () => {
+    setIsOpen(false);
+    if (isAuthenticated) {
+      router.push("/checkout");
+    } else {
+      router.push("/login?redirect=/checkout");
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -142,13 +155,26 @@ export function CartSheet() {
               </p>
 
               <div className="grid gap-2">
-                <Button asChild onClick={() => setIsOpen(false)}>
-                  <Link href="/checkout">Finalizar compra</Link>
+                <Button onClick={handleCheckout}>
+                  {isAuthenticated ? (
+                    "Finalizar compra"
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <LogIn className="h-4 w-4" />
+                      Ingresar para comprar
+                    </span>
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => setIsOpen(false)}>
                   Seguir comprando
                 </Button>
               </div>
+
+              {!isAuthenticated && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Debes iniciar sesión para completar tu compra
+                </p>
+              )}
             </div>
           </>
         )}

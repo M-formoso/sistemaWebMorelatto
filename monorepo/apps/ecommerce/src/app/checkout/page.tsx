@@ -56,11 +56,18 @@ interface PaymentMethod {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, totalWeight, clearCart } = useCartStore();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
   const { toast } = useToast();
 
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login?redirect=/checkout");
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   // Form state
   const [customerData, setCustomerData] = useState({
@@ -196,6 +203,15 @@ export default function CheckoutPage() {
       router.push("/productos");
     }
   }, [items, router]);
+
+  // Show loading while checking auth
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-800" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return null;
