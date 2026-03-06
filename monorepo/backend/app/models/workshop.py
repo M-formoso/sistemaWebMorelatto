@@ -23,15 +23,21 @@ class Workshop(Base, TimestampMixin):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Datos basicos
-    name = Column(String(255), nullable=False)
-    slug = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=True)  # Alias: title
+    title = Column(String(255), nullable=True)  # Campo principal del frontend
+    slug = Column(String(255), unique=True, nullable=True, index=True)  # Auto-generado
     description = Column(Text, nullable=True)
     content = Column(Text, nullable=True)  # Contenido largo para la pagina
 
     # Fechas y ubicacion
+    date = Column(Date, nullable=True)  # Campo del frontend (fecha/hora)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
+    duration_hours = Column(Integer, nullable=True)  # Duracion en horas
     location = Column(String(255), nullable=True)
+
+    # Materiales
+    materials_included = Column(Text, nullable=True)  # Materiales incluidos
 
     # Precio y cuotas
     price = Column(Numeric(12, 2), default=0)

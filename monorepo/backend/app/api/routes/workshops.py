@@ -11,7 +11,7 @@ from app.models.workshop import (
 from app.models.finance import PaymentInstallment
 from app.models.product import Product
 from app.schemas.workshop import (
-    WorkshopCreate, WorkshopResponse,
+    WorkshopCreate, WorkshopUpdate, WorkshopResponse,
     WorkshopClientCreate, WorkshopClientResponse,
     AttendanceCreate, AttendanceResponse,
     WorkshopProjectCreate, WorkshopProjectUpdate, WorkshopProjectResponse,
@@ -25,7 +25,37 @@ router = APIRouter()
 
 # ============ WORKSHOPS ============
 
-@router.get("", response_model=List[WorkshopResponse])
+def workshop_to_dict(workshop: Workshop) -> dict:
+    """Convierte un workshop a dict con campos adicionales para frontend"""
+    data = {
+        "id": workshop.id,
+        "title": workshop.title or workshop.name,
+        "name": workshop.name or workshop.title,
+        "slug": workshop.slug,
+        "description": workshop.description,
+        "content": workshop.content,
+        "date": workshop.date or workshop.start_date,
+        "start_date": workshop.start_date,
+        "end_date": workshop.end_date,
+        "duration_hours": workshop.duration_hours,
+        "location": workshop.location,
+        "materials_included": workshop.materials_included,
+        "price": workshop.price,
+        "installments_allowed": workshop.installments_allowed,
+        "product_discount": workshop.product_discount,
+        "max_participants": workshop.max_participants,
+        "current_participants": workshop.current_participants,
+        "enrolled_count": workshop.current_participants,  # Alias para frontend
+        "is_active": workshop.is_active,
+        "is_public": workshop.is_public,
+        "image_url": workshop.image_url,
+        "created_at": workshop.created_at,
+        "images": workshop.images if hasattr(workshop, 'images') else []
+    }
+    return data
+
+
+@router.get("")
 def get_workshops(
     is_active: Optional[bool] = None,
     is_public: Optional[bool] = None,
@@ -40,28 +70,30 @@ def get_workshops(
     if is_public is not None:
         query = query.filter(Workshop.is_public == is_public)
 
-    return query.order_by(Workshop.start_date.desc()).all()
+    workshops = query.order_by(Workshop.start_date.desc().nulls_last()).all()
+    return [workshop_to_dict(w) for w in workshops]
 
 
-@router.get("/public", response_model=List[WorkshopResponse])
+@router.get("/public")
 def get_public_workshops(db: Session = Depends(get_db)):
     """Listar talleres publicos para el ecommerce"""
-    return db.query(Workshop).options(joinedload(Workshop.images)).filter(
+    workshops = db.query(Workshop).options(joinedload(Workshop.images)).filter(
         Workshop.is_active == True,
         Workshop.is_public == True
-    ).order_by(Workshop.start_date.desc()).all()
+    ).order_by(Workshop.start_date.desc().nulls_last()).all()
+    return [workshop_to_dict(w) for w in workshops]
 
 
-@router.get("/{workshop_id}", response_model=WorkshopResponse)
+@router.get("/{workshop_id}")
 def get_workshop(workshop_id: UUID, db: Session = Depends(get_db)):
     """Obtener taller por ID"""
     workshop = db.query(Workshop).options(joinedload(Workshop.images)).filter(Workshop.id == workshop_id).first()
     if not workshop:
         raise HTTPException(status_code=404, detail="Taller no encontrado")
-    return workshop
+    return workshop_to_dict(workshop)
 
 
-@router.get("/slug/{slug}", response_model=WorkshopResponse)
+@router.get("/slug/{slug}")
 def get_workshop_by_slug(slug: str, db: Session = Depends(get_db)):
     """Obtener taller por slug"""
     workshop = db.query(Workshop).options(joinedload(Workshop.images)).filter(
@@ -70,27 +102,28 @@ def get_workshop_by_slug(slug: str, db: Session = Depends(get_db)):
     ).first()
     if not workshop:
         raise HTTPException(status_code=404, detail="Taller no encontrado")
-    return workshop
+    return workshop_to_dict(workshop)
 
 
-@router.post("", response_model=WorkshopResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_workshop(
     workshop_data: WorkshopCreate,
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_admin)
 ):
     """Crear taller"""
-    workshop = Workshop(**workshop_data.model_dump())
+    data = workshop_data.model_dump(exclude_none=True)
+    workshop = Workshop(**data)
     db.add(workshop)
     db.commit()
     db.refresh(workshop)
-    return workshop
+    return workshop_to_dict(workshop)
 
 
-@router.put("/{workshop_id}", response_model=WorkshopResponse)
+@router.put("/{workshop_id}")
 def update_workshop(
     workshop_id: UUID,
-    workshop_data: WorkshopCreate,
+    workshop_data: WorkshopUpdate,
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_admin)
 ):
@@ -99,12 +132,13 @@ def update_workshop(
     if not workshop:
         raise HTTPException(status_code=404, detail="Taller no encontrado")
 
-    for field, value in workshop_data.model_dump().items():
+    update_data = workshop_data.model_dump(exclude_unset=True, exclude_none=True)
+    for field, value in update_data.items():
         setattr(workshop, field, value)
 
     db.commit()
     db.refresh(workshop)
-    return workshop
+    return workshop_to_dict(workshop)
 
 
 @router.delete("/{workshop_id}", status_code=status.HTTP_204_NO_CONTENT)

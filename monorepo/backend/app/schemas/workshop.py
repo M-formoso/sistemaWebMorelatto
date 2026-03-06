@@ -1,8 +1,24 @@
-from pydantic import BaseModel, EmailStr, field_serializer
+from pydantic import BaseModel, EmailStr, field_serializer, field_validator, model_validator
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
 from datetime import date, datetime
+import re
+
+
+def generate_slug(text: str) -> str:
+    """Genera un slug a partir de un texto"""
+    slug = text.lower().strip()
+    slug = re.sub(r'[áàäâ]', 'a', slug)
+    slug = re.sub(r'[éèëê]', 'e', slug)
+    slug = re.sub(r'[íìïî]', 'i', slug)
+    slug = re.sub(r'[óòöô]', 'o', slug)
+    slug = re.sub(r'[úùüû]', 'u', slug)
+    slug = re.sub(r'[ñ]', 'n', slug)
+    slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+    slug = re.sub(r'[\s_]+', '-', slug)
+    slug = re.sub(r'-+', '-', slug)
+    return slug.strip('-')
 
 
 class WorkshopImageResponse(BaseModel):
@@ -23,13 +39,22 @@ class WorkshopImageResponse(BaseModel):
 
 
 class WorkshopBase(BaseModel):
-    name: str
-    slug: str
+    # Campos del frontend
+    title: Optional[str] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
     description: Optional[str] = None
     content: Optional[str] = None
+
+    # Fechas - el frontend envia 'date' como ISO string
+    date: Optional[datetime] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    duration_hours: Optional[int] = None
+
     location: Optional[str] = None
+    materials_included: Optional[str] = None
+
     price: Decimal = 0
     installments_allowed: int = 1
     product_discount: Decimal = 0
@@ -38,16 +63,113 @@ class WorkshopBase(BaseModel):
     is_public: bool = True
     image_url: Optional[str] = None
 
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, values):
+        """Normaliza campos: title -> name, date -> start_date, auto-genera slug"""
+        if isinstance(values, dict):
+            # Si viene title pero no name, usar title como name
+            if values.get('title') and not values.get('name'):
+                values['name'] = values['title']
+            # Si viene name pero no title, usar name como title
+            elif values.get('name') and not values.get('title'):
+                values['title'] = values['name']
+
+            # Auto-generar slug si no viene
+            if not values.get('slug'):
+                title = values.get('title') or values.get('name')
+                if title:
+                    # Agregar timestamp para unicidad
+                    base_slug = generate_slug(title)
+                    values['slug'] = f"{base_slug}-{int(datetime.now().timestamp())}"
+
+            # Si viene 'date' como string ISO, parsearlo
+            if values.get('date') and isinstance(values['date'], str):
+                try:
+                    dt = datetime.fromisoformat(values['date'].replace('Z', '+00:00'))
+                    values['date'] = dt
+                    # Tambien setear start_date si no viene
+                    if not values.get('start_date'):
+                        values['start_date'] = dt.date()
+                except:
+                    pass
+        return values
+
 
 class WorkshopCreate(WorkshopBase):
     pass
 
 
-class WorkshopResponse(WorkshopBase):
+class WorkshopUpdate(BaseModel):
+    """Schema para actualizar workshop - todos los campos opcionales"""
+    title: Optional[str] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    date: Optional[datetime] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    duration_hours: Optional[int] = None
+    location: Optional[str] = None
+    materials_included: Optional[str] = None
+    price: Optional[Decimal] = None
+    installments_allowed: Optional[int] = None
+    product_discount: Optional[Decimal] = None
+    max_participants: Optional[int] = None
+    is_active: Optional[bool] = None
+    is_public: Optional[bool] = None
+    image_url: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, values):
+        """Normaliza campos"""
+        if isinstance(values, dict):
+            # Si viene title, actualizar tambien name
+            if values.get('title'):
+                values['name'] = values['title']
+
+            # Si viene 'date' como string ISO, parsearlo
+            if values.get('date') and isinstance(values['date'], str):
+                try:
+                    dt = datetime.fromisoformat(values['date'].replace('Z', '+00:00'))
+                    values['date'] = dt
+                    if not values.get('start_date'):
+                        values['start_date'] = dt.date()
+                except:
+                    pass
+        return values
+
+
+class WorkshopResponse(BaseModel):
     id: UUID
-    current_participants: int
+    title: Optional[str] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    date: Optional[datetime] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    duration_hours: Optional[int] = None
+    location: Optional[str] = None
+    materials_included: Optional[str] = None
+    price: Decimal = 0
+    installments_allowed: int = 1
+    product_discount: Decimal = 0
+    max_participants: Optional[int] = None
+    current_participants: int = 0
+    is_active: bool = True
+    is_public: bool = True
+    image_url: Optional[str] = None
     created_at: datetime
     images: List[WorkshopImageResponse] = []
+
+    # Campo computed para el frontend - enrolled_count
+    @property
+    def enrolled_count(self) -> int:
+        return self.current_participants
 
     @field_serializer('id')
     def serialize_id(self, value: UUID) -> str:
