@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # EverShop - Ecommerce
+  evershop:
+    image: evershop/evershop:latest
+    container_name: morelatto-ecommerce
+    restart: always
+    environment:
+      DB_HOST: postgres-ecommerce
+      DB_PORT: 5432
+      DB_PASSWORD: morelatto2024
+      DB_USER: morelatto
+      DB_NAME: morelatto_ecommerce
+      # Configuración de la tienda
+      SHOP_NAME: "Morelatto Lanas"
+      SHOP_CURRENCY: "ARS"
+      SHOP_LANGUAGE: "es"
+    networks:
+      - morelatto-network
+    depends_on:
+      - postgres-ecommerce
+    ports:
+      - "3002:3000"  # Puerto 3002 para el ecommerce
+    volumes:
+      - evershop-media:/app/media
+      - ./themes:/app/themes
+      - ./extensions:/app/extensions
+
+  # PostgreSQL para EverShop
+  postgres-ecommerce:
+    image: postgres:16
+    container_name: morelatto-postgres-ecommerce
+    restart: unless-stopped
+    volumes:
+      - postgres-ecommerce-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: morelatto2024
+      POSTGRES_USER: morelatto
+      POSTGRES_DB: morelatto_ecommerce
+    ports:
+      - "5433:5432"  # Puerto 5433 para no conflictuar con otro postgres
+    networks:
+      - morelatto-network
+
+networks:
+  morelatto-network:
+    name: MorelattoNetwork
+    driver: bridge
+
+volumes:
+  postgres-ecommerce-data:
+  evershop-media:
