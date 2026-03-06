@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 from uuid import UUID
+from datetime import datetime
 
 from app.db.session import get_db
 from app.models.workshop import (
@@ -113,6 +114,12 @@ def create_workshop(
 ):
     """Crear taller"""
     data = workshop_data.model_dump(exclude_none=True)
+
+    # Si viene 'date' pero no 'start_date', copiar la fecha
+    if 'date' in data and 'start_date' not in data:
+        if isinstance(data['date'], datetime):
+            data['start_date'] = data['date'].date()
+
     workshop = Workshop(**data)
     db.add(workshop)
     db.commit()

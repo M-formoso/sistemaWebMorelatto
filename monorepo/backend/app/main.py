@@ -27,10 +27,22 @@ app = FastAPI(
 # Handler para errores de validación
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    print(f"Validation error: {exc.errors()}")
+    # Convertir errores a formato serializable
+    errors = []
+    for error in exc.errors():
+        err = dict(error)
+        # Convertir input a string si no es serializable
+        if 'input' in err:
+            try:
+                import json
+                json.dumps(err['input'])
+            except TypeError:
+                err['input'] = str(err['input'])
+        errors.append(err)
+    print(f"Validation error: {errors}")
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
+        content={"detail": errors},
     )
 
 # CORS - Permitir todos los origenes en desarrollo (debe ir antes de las rutas)

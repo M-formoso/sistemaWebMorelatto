@@ -66,7 +66,7 @@ class WorkshopBase(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def normalize_fields(cls, values):
-        """Normaliza campos: title -> name, date -> start_date, auto-genera slug"""
+        """Normaliza campos: title -> name, auto-genera slug"""
         if isinstance(values, dict):
             # Si viene title pero no name, usar title como name
             if values.get('title') and not values.get('name'):
@@ -83,14 +83,11 @@ class WorkshopBase(BaseModel):
                     base_slug = generate_slug(title)
                     values['slug'] = f"{base_slug}-{int(datetime.now().timestamp())}"
 
-            # Si viene 'date' como string ISO, parsearlo
+            # Si viene 'date' como string ISO, parsearlo a datetime
             if values.get('date') and isinstance(values['date'], str):
                 try:
                     dt = datetime.fromisoformat(values['date'].replace('Z', '+00:00'))
                     values['date'] = dt
-                    # Tambien setear start_date si no viene
-                    if not values.get('start_date'):
-                        values['start_date'] = dt.date()
                 except:
                     pass
         return values
@@ -135,8 +132,6 @@ class WorkshopUpdate(BaseModel):
                 try:
                     dt = datetime.fromisoformat(values['date'].replace('Z', '+00:00'))
                     values['date'] = dt
-                    if not values.get('start_date'):
-                        values['start_date'] = dt.date()
                 except:
                     pass
         return values
