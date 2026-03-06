@@ -9,6 +9,7 @@ class ClientBase(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     document: Optional[str] = None
+    address: Optional[str] = None
     notes: Optional[str] = None
 
 

@@ -66,24 +66,42 @@ def get_sales_summary(
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_admin)
 ):
-    """Obtener resumen de ventas"""
-    query = db.query(
-        func.count(Sale.id).label("total_sales"),
-        func.sum(Sale.total).label("total_amount"),
-        func.avg(Sale.total).label("average_sale")
-    )
+    """Obtener resumen de ventas por periodos"""
+    from datetime import datetime, timedelta
 
-    if date_from:
-        query = query.filter(Sale.date >= date_from)
-    if date_to:
-        query = query.filter(Sale.date <= date_to)
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
 
-    result = query.first()
+    # Ventas de hoy
+    today_result = db.query(
+        func.count(Sale.id).label("count"),
+        func.sum(Sale.total).label("total")
+    ).filter(Sale.date == today).first()
+
+    # Ventas de esta semana
+    week_result = db.query(
+        func.count(Sale.id).label("count"),
+        func.sum(Sale.total).label("total")
+    ).filter(Sale.date >= week_start).first()
+
+    # Ventas de este mes
+    month_result = db.query(
+        func.count(Sale.id).label("count"),
+        func.sum(Sale.total).label("total")
+    ).filter(Sale.date >= month_start).first()
 
     return {
-        "total_sales": result.total_sales or 0,
-        "total_amount": float(result.total_amount or 0),
-        "average_sale": float(result.average_sale or 0)
+        "today_total": float(today_result.total or 0),
+        "today_count": today_result.count or 0,
+        "week_total": float(week_result.total or 0),
+        "week_count": week_result.count or 0,
+        "month_total": float(month_result.total or 0),
+        "month_count": month_result.count or 0,
+        # Mantener campos antiguos por compatibilidad
+        "total_sales": month_result.count or 0,
+        "total_amount": float(month_result.total or 0),
+        "average_sale": float((month_result.total or 0) / max(month_result.count or 1, 1))
     }
 
 

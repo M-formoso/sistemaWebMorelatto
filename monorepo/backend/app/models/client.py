@@ -18,6 +18,7 @@ class Client(Base, TimestampMixin):
     email = Column(String(255), nullable=True, index=True)
     phone = Column(String(50), nullable=True)
     document = Column(String(50), nullable=True)  # DNI/CUIT
+    address = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
 
     # Relationships
