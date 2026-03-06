@@ -161,6 +161,7 @@ def create_sale(
         product.stock -= item_data.quantity
 
     # Crear venta
+    today = date.today()
     sale = Sale(
         client_id=sale_data.client_id,
         client_name=sale_data.client_name,
@@ -170,6 +171,7 @@ def create_sale(
         payment_method=sale_data.payment_method,
         notes=sale_data.notes,
         invoice_number=generate_invoice_number(db),
+        date=today,
         subtotal=subtotal,
         taxes=Decimal("0"),
         total=subtotal
@@ -184,7 +186,7 @@ def create_sale(
         concept=f"Venta {sale.invoice_number}",
         category="Venta",
         amount=sale.total,
-        date=sale.date,
+        date=today,
         sale_id=sale.id
     )
     db.add(movement)
