@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Users,
   Calendar,
-  FileText,
   Settings,
   Truck,
   CreditCard,
@@ -17,6 +16,7 @@ import {
   Building2,
   UserCog,
   Newspaper,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -27,6 +27,7 @@ const navigation = [
   { name: "Categorías", href: "/categorias", icon: Tags },
   { name: "Pedidos Web", href: "/pedidos", icon: ShoppingCart },
   { name: "Ventas Local", href: "/ventas", icon: CreditCard },
+  { name: "Finanzas", href: "/finanzas", icon: Wallet },
   { name: "Clientes", href: "/clientes", icon: Users },
   { name: "Talleres", href: "/talleres", icon: Calendar },
   { name: "Proveedores", href: "/proveedores", icon: Building2 },

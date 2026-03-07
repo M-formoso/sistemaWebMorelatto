@@ -18,18 +18,26 @@ class Movement(Base, TimestampMixin):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    type = Column(Enum(MovementType), nullable=False)
+    type = Column(Enum(MovementType), nullable=False, index=True)
     concept = Column(String(255), nullable=False)
-    category = Column(String(100), nullable=True)
+    category = Column(String(100), nullable=True, index=True)
     amount = Column(Numeric(12, 2), nullable=False)
-    date = Column(Date, nullable=False)
+    date = Column(Date, nullable=False, index=True)
     notes = Column(Text, nullable=True)
 
     # Relacion con venta (si el movimiento viene de una venta)
-    sale_id = Column(UUID(as_uuid=True), ForeignKey("sales.id"), nullable=True)
+    sale_id = Column(UUID(as_uuid=True), ForeignKey("sales.id", ondelete="SET NULL"), nullable=True)
+
+    # Relacion con orden del ecommerce (si viene de un pedido)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL"), nullable=True)
+
+    # Relacion con pago a proveedor (si es un egreso de proveedor)
+    supplier_payment_id = Column(UUID(as_uuid=True), ForeignKey("supplier_payments.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     sale = relationship("Sale", back_populates="movement")
+    order = relationship("Order", backref="movements")
+    supplier_payment = relationship("SupplierPayment", backref="movement")
 
     def __repr__(self):
         return f"<Movement {self.type.value}: {self.amount}>"

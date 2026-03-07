@@ -955,6 +955,99 @@ class ApiClient {
     return this.request('/suppliers/summary/all');
   }
 
+  // ============ FINANCE (Movimientos financieros) ============
+
+  async getMovements(params?: {
+    type?: string; // "ingreso" o "egreso"
+    category?: string;
+    date_from?: string;
+    date_to?: string;
+    skip?: number;
+    limit?: number;
+  }) {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.date_from) searchParams.append('date_from', params.date_from);
+    if (params?.date_to) searchParams.append('date_to', params.date_to);
+    if (params?.skip) searchParams.append('skip', params.skip.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/finance/movements${query ? `?${query}` : ''}`);
+  }
+
+  async getMovement(id: string) {
+    return this.request(`/finance/movements/${id}`);
+  }
+
+  async createMovement(data: {
+    type: 'ingreso' | 'egreso';
+    concept: string;
+    category?: string;
+    amount: number;
+    date: string;
+    notes?: string;
+  }) {
+    return this.request('/finance/movements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateMovement(id: string, data: {
+    concept?: string;
+    category?: string;
+    amount?: number;
+    date?: string;
+    notes?: string;
+  }) {
+    return this.request(`/finance/movements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMovement(id: string) {
+    return this.request(`/finance/movements/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFinanceSummary(params?: { date_from?: string; date_to?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.date_from) searchParams.append('date_from', params.date_from);
+    if (params?.date_to) searchParams.append('date_to', params.date_to);
+
+    const query = searchParams.toString();
+    return this.request(`/finance/summary${query ? `?${query}` : ''}`);
+  }
+
+  async getFinancePeriodSummaries() {
+    return this.request('/finance/summary/periods');
+  }
+
+  async getFinanceSummaryByCategory(type: 'ingreso' | 'egreso', params?: { date_from?: string; date_to?: string }) {
+    const searchParams = new URLSearchParams();
+    searchParams.append('type', type);
+    if (params?.date_from) searchParams.append('date_from', params.date_from);
+    if (params?.date_to) searchParams.append('date_to', params.date_to);
+
+    return this.request(`/finance/summary/by-category?${searchParams.toString()}`);
+  }
+
+  async getCashFlow(days: number = 30) {
+    return this.request(`/finance/cash-flow?days=${days}`);
+  }
+
+  async getIncomeCategories() {
+    return this.request('/finance/categories/income');
+  }
+
+  async getExpenseCategories() {
+    return this.request('/finance/categories/expense');
+  }
+
   // Helper method to get full image URL
   getImageUrl(relativePath: string | null | undefined): string | null {
     if (!relativePath) return null;
