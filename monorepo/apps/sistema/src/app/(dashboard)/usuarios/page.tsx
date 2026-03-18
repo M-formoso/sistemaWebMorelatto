@@ -66,7 +66,7 @@ const defaultForm: UserForm = {
 
 const roleConfig: Record<string, { label: string; color: string; icon: any }> = {
   admin: { label: "Administrador", color: "bg-red-500", icon: ShieldAlert },
-  staff: { label: "Staff", color: "bg-blue-500", icon: ShieldCheck },
+  empleado: { label: "Empleado", color: "bg-blue-500", icon: ShieldCheck },
   user: { label: "Usuario", color: "bg-gray-500", icon: Shield },
 };
 
@@ -245,16 +245,16 @@ export default function UsuariosPage() {
             <ShieldAlert className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.admins || 0}</div>
+            <div className="text-2xl font-bold">{stats?.by_role?.admin || 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Staff</CardTitle>
+            <CardTitle className="text-sm font-medium">Empleados</CardTitle>
             <ShieldCheck className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.staff || 0}</div>
+            <div className="text-2xl font-bold">{stats?.by_role?.empleado || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -263,7 +263,7 @@ export default function UsuariosPage() {
             <Shield className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.users || 0}</div>
+            <div className="text-2xl font-bold">{stats?.by_role?.user || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -287,7 +287,7 @@ export default function UsuariosPage() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="admin">Administradores</SelectItem>
-                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="empleado">Empleados</SelectItem>
                 <SelectItem value="user">Usuarios</SelectItem>
               </SelectContent>
             </Select>
@@ -472,7 +472,7 @@ export default function UsuariosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="empleado">Empleado</SelectItem>
                   <SelectItem value="user">Usuario</SelectItem>
                 </SelectContent>
               </Select>
