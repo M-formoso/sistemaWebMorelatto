@@ -35,8 +35,8 @@ export default function LoginPage() {
       return { token: response.access_token, user };
     },
     onSuccess: ({ token, user }) => {
-      // Verificar que sea admin o staff
-      if (!["admin", "staff"].includes(user.role)) {
+      // Verificar que sea admin o empleado
+      if (!["admin", "empleado"].includes(user.role)) {
         toast({
           title: "Acceso denegado",
           description: "No tenés permisos para acceder al sistema",
